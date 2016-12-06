@@ -1,0 +1,22 @@
+from idc import AddStrucEx, AddStrucMember
+
+id = AddStrucEx(-1, "ios_request", 0)
+AddStrucMember(id, "cmd", 0, 0x20000400, -1, 4)
+AddStrucMember(id, "field_4", 0x4, 0x20000400, -1, 4)
+AddStrucMember(id, "fd", 0x8, 0x20000400, -1, 4)
+AddStrucMember(id, "field_C", 0xC, 0x20000400, -1, 4)
+AddStrucMember(id, "coreid", 0x10, 0x20000400, -1, 4)
+AddStrucMember(id, "rampid", 0x14, 0x20000400, -1, 4)
+AddStrucMember(id, "titleid_hi", 0x18, 0x20000400, -1, 4)
+AddStrucMember(id, "titleid_lo", 0x1C, 0x20000400, -1, 4)
+AddStrucMember(id, "field_20", 0x20, 0x20000400, -1, 4)
+AddStrucMember(id, "arg0", 0x24, 0x20000400, -1, 4)
+AddStrucMember(id, "arg1", 0x28, 0x20000400, -1, 4)
+AddStrucMember(id, "arg2", 0x2C, 0x20000400, -1, 4)
+AddStrucMember(id, "arg3", 0x30, 0x20000400, -1, 4)
+AddStrucMember(id, "arg4", 0x34, 0x20000400, -1, 4)
+
+id = AddStrucEx(-1, "ioctlv_vec", 0)
+AddStrucMember(id, "pyhs", 0, 0x20000400, -1, 4)
+AddStrucMember(id, "size", 0x4, 0x20000400, -1, 4)
+AddStrucMember(id, "virt", 0x8, 0x20000400, -1, 4)

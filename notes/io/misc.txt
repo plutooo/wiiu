@@ -1,0 +1,20 @@
++----------+---------------------+
+| Addr     | Name
++----------+---------------------+
+| 0D8000E0 | HW_GPIO_OUT         |
+| 0D8000E8 | HW_GPIO_IN          |
+| 0D800190 | HW_CLOCKS           | Bit1: Controls frequency.
+| 0D800198 | HW_RESETS           | Control IO resets.
+| 0D800198 | HW_IFPOWER          | Control IO "clockgate".
+| 0D8001C8 |                     | Control IO PLL.
+| 0D8001DC | HW_SSPOWER          | Control IO power.
+| 0D8001E0 | HW_IOSTRENGTH       | Control IO "strength".
+| 0D800214 | HW_VERSION          |
+
+| 0D800540 | HW_GPIO_OUT2        |
+| 0D800548 | HW_GPIO_IN2         |
+| 0D8005A0 | HW_VERSION2         |
+| 0D8005B8 |                     | Bit5: StereoOutSelect, bit0: Sel0STS
+| 0D8005BC |                     | Bit2: Iop2x
+
+

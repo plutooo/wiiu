@@ -1,0 +1,85 @@
+== Common ==
+A lot of PowerPC pids were removed.
+
+
+== IOSU Kernel ==
+All syscalls related to IOB were removed. The IOB virtaddr mapping (0x1FB00000+)
+removed.
+
+Two additional checks were added to syscall 83 and 84.
+
+The syscall handler now verifies that SP is within the stack-boundaries for the
+active thread. This makes rop outside stack rather useless since you can't do
+syscalls without a stackpivot.
+
+
+=== loader.elf ===
+Loader was built on 28th of July 2015, at 8pm.
+
+Two new syscalls were added:
+    Loader_SysCallConsoleTimestamp
+    Loader_SysCallValidateOverlayRange
+
+Two new functions were introduced:
+
+"""
+    int sCheckDataRange(u32 addr, u32 range_size):
+        If addr < 0x10000000:
+            Return 0
+        If (range_size + 0x10000000) >= addr:
+            Return 0
+        If (addr+range_size) < addr:
+            Return 0
+        Return 1
+
+   int sCheckOverlayRange(u32 addr, u32 size):
+       Return Loader_SysCallValidateOverlayRange(addr, size)
+"""
+
+The ValidateSetupParams function was updated to use these functions:
+
+"""
+    // r3 = addr "apArea"
+    // r4 = size "aAreaBytes"
+    // r5 = required_alignment?
+    // r6 = range_size
+
+    // u32 loAddr = 0x10000000;
+    // u32 hiAddr = loAddr + range_size;
+
+    if ( !sCheckDataRange(addr, range_size) && !sCheckOverlayRange(addr, size) )
+        printf("Invalid area address\n");
+    if ( !sCheckDataRange(addr+size, range_size) )
+        printf("Invalid area buffer\n");
+"""
+
+The old ValidateSetupParams only did the following:
+
+"""
+    if ( addr < 0x10000000 || addr >= (range_size+0x10000000) )
+        printf("Invalid area address\n");
+    if ( (addr+size) < 0x10000000 || (addr+size) >= (range_size+0x10000000) )
+        printf("Invalid area address\n");
+"""
+
+A timestamp was added to loader's COSWarn prints. This was done with the new
+syscall introduced.
+
+
+=== What is the Overlay Area? ===
+
+The Overlay Area is enabled by a flag per-process in cos.xml. There are a few
+syscalls to control it. IOS is involved, and kernel does requests to IOS
+related to Overlay Area.
+
+We believe it is mapped at virtaddr 0xA0000000 size 0x1C000000. The physaddr is
+0x34000000. Maybe it is used by DLC/game upgrades to patch a game binary?
+
+The syscall "KeEffectiveToPhysical" contains a special case for this area:
+
+"""
+       If (MemFlags & 1) is set:
+          If addr in range(0xA0000000, 0xBC000000):
+              Return addr + 0x94000000
+"""
+

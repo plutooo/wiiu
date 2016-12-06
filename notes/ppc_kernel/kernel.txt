@@ -1,0 +1,15 @@
+Kernel-panic func @ 0xFFEE1214, but sometimes it is inlined.
+It is easily identified as forever-loops + the following 'forced crash':
+    *0xD = 0;
+
+Kernel functions start with either Ki or Ke:
+       Ki are internal functions,
+       Ke are external functions (syscalls, maybe something else?)
+
+There are 3 different types of processes: Foreground, Background and Loader.
+
+mode_flags when running webkit are: 20000200.
+
+TODO: What is mode_flags exactly?
+
+system_flags when running webkit are: 00000001.

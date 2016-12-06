@@ -1,0 +1,438 @@
+== Notes ==
+Registers:
+  r3-..: Arguments to syscalls.
+  r3-..: Return values from syscalls.
+  r13  : For extended syscalls, this is fixed to 0xFFEB0BC0 (v8820).
+                                                 0xFFEB1780? (v11464).
+
+There are 0-0x1F syscalls that always are available (bits 0-4):
+
+== Lower syscall table ==
++--------+---------------------------------
+| #      | Name
++--------+---------------------------------
+|  0x1   | MemoryBarrier
+|  0x2   | <panic>
+|  0x3   | <panic>
+|  0x4   | <panic>
+|  0x5   | <panic>
+|  0x6   | LoadContext
+|  0x7   | <???>
+|  0x8   | SetCurrentContext
+|  0x9   | GetCurrentFPUContext
+|  0xA   | SetCurrentFPUContext
+|  0xB   | ClearContext
+|  0xC   | SetupWritePipe
+|  0xD   | SetPerformanceMonitor
+|  0xE   | LCLoadDMABlocks/LCStoreDMABlocks
+|  0xF   | <stubbed>
+|  0x10  | <???>
+|  0x11  | ReadRegister32Ex
+|  0x12  | WriteRegister32Ex
+|  0x13  | <write-pipe related>
+|  0x14  | <write-pipe related>
+|  0x15  | <???>
+|  0x16  | <???>
+|  0x17  | GetSecurityLevel
+|  0x18  | EnableCpuFloatUnit
+|  0x19  | <returns 0>
+|  0x1A  | <context-related>
+|  0x1B  | <context-related>
+|  0x1C  | <context-related>
+|  0x1D  | <context-related>
+|  0x2E  | <context-related>
+|  0x2F  | <context-related>
++--------+---------------------------------
+
+These syscalls have no stack, for example.
+
+
+Syscall 0 is used for 'extended' syscalls. It will setup a stack, lookup the
+extended syscall func-ptr from table, setup TOC (r13) and then jump to the
+func-ptr. There is a check if the table entry is 0/NULL.
+
+The extended syscall number is extracted like so:
+    extended_syscall_id = (r0 & 0xff00) >> 8;
+
+Thus, the upper 16 bits of r0 are ignored.
+
+Depending on process, there are different tables for the extended syscalls. In
+total there are 3 tables for 'normal processes', and one table for the loader
+process.
+
+
+== Loader syscall-table (completed): ==
++--------+--------------------------------------------
+| #      | Name
++--------+--------------------------------------------
+| 0x0000 | ConsoleWrite
+| 0x0100 | AppPanic
++--------+--------------------------------------------
+| 0x0500 | ValidateAddrRange
++--------+--------------------------------------------
+| 0x1700 | FindClosestSymbol
++--------+--------------------------------------------
+| 0x1E00 | IPCKDriver_LoaderOpen
+| 0x1F00 | IPCKDriver_LoaderClose
+| 0x2000 | IPCKDriver_SubmitRequest
++--------+--------------------------------------------
+| 0x3F00 | LogBuffer
+| 0x4000 | LogArgs
+| 0x4100 | LogFunc
+| 0x4200 | LogReportKernel
+| 0x4300 | LogRetrieve
++--------+--------------------------------------------
+| 0x5000 | RPLLoader_ResumeContext
++--------+--------------------------------------------
+| 0x5200 | WaitIopComplete
+| 0x5300 | FlushCode
+| 0x5400 | FlushData
+| 0x5500 | UpdateHeartBeat
+| 0x5600 | LogEntry
+| 0x5700 | FastClearMemory
+| 0x5800 | GetBusClockSpeed
++--------+--------------------------------------------
+| 0x5B00 | GetProcessIndex
+| 0x5C00 | IPCKDriver_PollLoaderCompletion
++--------+--------------------------------------------
+| 0x5E00 | FinishInitAndPreload
+| 0x5F00 | ContinueStartProcess
+| 0x6000 | OpenMCP
++--------+--------------------------------------------
+| 0x6600 | ProfileEntry (stubbed)
++--------+--------------------------------------------
+| 0x7400 | ???
++--------+--------------------------------------------
+| 0x8300 | ConsoleTimestamp (added with 5.5.0)
+| 0x8400 | ValidateOverlayRange (added with 5.5.0)
++--------+--------------------------------------------
+
+
+== Normal Table ==
++--------+--------------------------------------------
+| #      | Name
++--------+--------------------------------------------
+| 0x0000 | ConsoleWrite
+| 0x0100 | AppPanic
+| 0x0200 | PhysicalToEffective
+| 0x0300 | PhysicalToEffectiveCached
+| 0x0400 | PhysicalToEffectiveUncached
+| 0x0500 | ValidateAddrRange
+| 0x0600 | UpdateCoretime
++--------+--------------------------------------------
+| 0x0800 | SetUserModeExHandler (if r6==0, something else if r6==1)
++--------+--------------------------------------------
+| 0x0B00 | AllocateTimer
+| 0x0C00 | FreeTimer
+| 0x0D00 | PrimeTimer
+| 0x0E00 | StopTimer
+| 0x0F00 | LogLoadedRPLs
+| 0x1000 | SetInterruptHandler?
+| 0x1100 | GetInterruptHandler? (guess)
+| 0x1200 | DisableInterrupt
+| 0x1300 | EnableInterrupt? (guess)
+| 0x1400 | ClearAndEnableInterrupt
+| 0x1500 | .. Interrupt related.
+| 0x1600 | .. Interrupt related.
+| 0x1700 | FindClosestSymbol .. Called by GetSymbolName
++--------+--------------------------------------------
+| 0x1900 | PPC_Halt
+| 0x1A00 | GetInfo
+| 0x1B00 | SetInfo
+| 0x1C00 | .. Thread related?
+| 0x1D00 | KernelSendICI
+| 0x1E00 | IPC_DriverOpen
+| 0x1F00 | IPC_DriverClose
+| 0x2000 | IPCKDriver_SubmitRequest
++--------+--------------------------------------------
+| 0x2200 | GetEnvironmentVariable (Env_GetVariable)
++--------+--------------------------------------------
+| 0x2700 | GetKernelMessageQueue .. Related to QueueArea/notifications.
+| 0x2800 | ProcCtrl? .. Called by OSReleaseForeground
+| 0x2900 | GetForegroundBucket
+| 0x2A00 | SendAppSwitchRequest .. Called by OSSendAppSwitchRequest.
+| 0x2B00 | PrepareTitle
+| 0x2C00 | ProcYield? .. Related to QueueArea/notifications.
++--------+--------------------------------------------
+| 0x2E00 | push_system_msg
+| 0x2F00 | GetCallArgs
+| 0x3000 | GetAbsoluteSystemTime
+| 0x3100 | SetAbsoluteSystemTime
+| 0x3200 | Driver_Register
+| 0x3300 | Driver_Deregister
++--------+--------------------------------------------
+| 0x3800 | AllocVirtAddr
+| 0x3900 | FreeVirtAddr
+| 0x3A00 | GetMapVirtAddrRange
+| 0x3B00 | GetDataPhysAddrRange
+| 0x3C00 | GetAvailPhysAddrRange
+| 0x3D00 | MapMemory
+| 0x3E00 | UnmapMemory
+| 0x3F00 | LogBuffer
+| 0x4000 | LogArgs
+| 0x4100 | LogFunc
+| 0x4200 | LogReport
+| 0x4300 | LogRetrieve
+| 0x4400 | ? Never used by coreinit, called internally by KeLoadContext.
+| 0x4500 | ? Never used by coreinit, called internally by KeProcYield.
+| 0x4600 | ? Never used by coreinit, called internally by KiSetPExCallback.
+| 0x4700 | Driver_CopyFromSaveArea
+| 0x4800 | Driver_CopyToSaveArea
+| 0x4900 | SavesDone_ReadyToRelease
+| 0x4A00 | .. Used by various sync primitives.
+| 0x4B00 | SetDABR
+| 0x4C00 | SetIABR
+| 0x4D00 | GetProcessInfo
+| 0x4E00 | GetCodegenVirtAddrRange
+| 0x4F00 | TalkToLoader
++--------+--------------------------------------------
+| 0x5900 | GetSharedData
+| 0x5A00 | SendPolicyRequest
++--------+--------------------------------------------
+| 0x5D00 | CblRegisterBlocks
++--------+--------------------------------------------
+| 0x6100 | .. Called by OSSendAppSwitchRequest.
+| 0x6200 | ?
+| 0x6300 | ?
+| 0x6400 | SetTimeInternal?
+| 0x6500 | ret_0
++--------+--------------------------------------------
+| 0x6700 | RequestFastExit
+| 0x6800 | ProcCall
+| 0x6900 | GetSwitchTarget
+| 0x6A00 | .. Called by OSReceiveMessage.
+| 0x6B00 | GetProcessSDKVersion
+| 0x6C00 | SystemFatal .. Called by OSSendFatalError/OSSendAppSwitchRequest.
++--------+--------------------------------------------
+| 0x6E00 | SwitchSecCodeGenMode
+| 0x6F00 | .. Called at start of coreinit?
+| 0x7000 | GetTitleVersion
+| 0x7100 | ret_0
+| 0x7200 | ForceFullRelaunch
+| 0x7300 | Recycle
++--------+--------------------------------------------
+| 0x7400 | get_mode_flags
+| 0x7500 | QueryVirtAddr
+| 0x7600 | GetCodegenInfo
+| 0x7700 | GetSecCodegenMode
+| 0x7800 | CodegenCopy
+| 0x7900 | RootLoadShared
+| 0x7A00 | SetExceptionCallback
++--------+--------------------------------------------
+| 0x7B00 | IopShell_InjectCommand
+| 0x7C00 | .. IopShell related.. r3: 0=kill, 1=killrestart
+| 0x7D00 | EnableOverlayArena? (Used by SetExceptionCallback?)
+| 0x7E00 | DisableOverlayArena
+| 0x7F00 | GetSystemMode
+| 0x8000 | .. Called at start of coreinit?
+| 0x8100 | ZeroProcessMemory
+| 0x8200 | HandlePowerEvents
++--------+--------------------------------------------
+
+
+== Normal Table, limited with 1 extra ==
+Added syscalls:
++--------+--------------------------------------------
+| 0x6400 | .. Used by SetAbsoluteSystemTimeUserMode
++--------+--------------------------------------------
+Removed syscalls:
+        0x73, 0x79, 0x81
+
+== Normal Table, limited ==
+Removed syscalls:
+        0x73, 0x79, 0x81
+
+
+
+=== 0xC: SetupWritePipe ===
+Input:
+  none
+Output:
+  none
+
+This sets up the write pipe to point to: 0x0C2A0000 + (core_id<<17).
+
+
+=== 0x11: ReadRegister32Ex ===
+Input:
+  r3: RegionId       (reduced to 0-15)
+  r4: RegisterOffset (reduced to 0-15)
+Output:
+  r3: Output
+
+These regs are at physaddr 0x0D000000+.
+
++----------+-------------+----------------+-------------+----
+| RegionId | Descriptor  | RegionSize     | BaseVaAddr  | Description
++----------+-------------+----------------+-------------+---
+|        1 | 0xFD020068  |              2 | 0xFD000068  | ???
+|        2 | 0xFD0100C0  |              1 | 0xFD0000C0  | HW_GPIO1BOUT
+|        3 | 0xFD04021C  |              4 | 0xFD00021C  | ???
+|        4 | 0xFD040250  |              4 | 0xFD000250  | ???
+|        5 | 0xFD060520  |              6 | 0xFD000520  | ???
+|        6 | 0xFD106400  |             16 | 0xFD006400  | ???
+|        7 | 0xFD046C00  |              4 | 0xFD006C00  | ???
+|        8 | 0xFD046E00  |              4 | 0xFD006E00  | ???
+|        9 | 0xFD0F6800  |             15 | 0xFD006800  | ???
++----------+-------------+----------------+-------------+---
+
+Descriptor:
+    Bit16-24: Region size (in bytes?)
+    Rest:     Address
+
+
+=== 0x12: WriteRegister32Ex ===
+Input:
+  r3: RegionId       (reduced to 0-15)
+  r4: RegisterOffset (reduced to 0-15)
+  r5: Value
+
+See table above.
+
+
+=== 0x200: PhysicalToEffective ===
+=== 0x300: PhysicalToEffectiveCached ===
+=== 0x400: PhysicalToEffectiveUncached ===
+Input:
+  r3 = in_addr
+Output:
+  r3 = out_addr
+
+
+=== 0x500: ValidateAddrRange ===
+Input:
+  r3 = 0,1 (ignored by sc?!)
+  r4 = addr?
+  r5 = size?
+Output:
+  r3
+
+Returns 0 if addr+size overflow, 1/0 if addr mapped/unmapped.
+
+=== 0x1B00: SetInfo ===
+Input:
+  r3=type
+  r4=buf_ptr
+  r5=buf_size
+  r6=ignored?!
+Output
+  r3=result (sometimes returns 1 on success?)
+
+This is used to set various kernel structs/special registers...
+
++-------+-----------------------------------------+ ---------+
+| Type  | Description                             | Buf size |
++-------+-----------------------------------------+----------+
+|     1 | ConsoleParams                           | 0xC      |
+|     2 | ???                                     | 8        |
+|     3 | PermissionFlagsForInfoTypes_4_and_5     | 4        |
+|     4 | UnmapDataBatByAddr                      | 4        |
+|     5 | ???                                     | 0x40     |
+|     6 | CrashDumpType                           | 4        |
+|     7 | ???                                     | 4        |
+|     8 | ???                                     | 0x14     |
+|     9 | LogLevel                                | 0x14     |
+|    10 | ???                                     | 4        |
+|    11 | ModeFlagsBit19                          | 4        |
+|    12 | ???                                     | 4        |
+|    13 | CrashLevelDetail                        | 4        |
+|    14 | ???                                     | < 0x20   |
+|    15 | Write WPSAR (write-pipe save register)  | 4        |
++-------+-----------------------------------------+----------+
+
+
+=== 0x3A00: GetMapVirtAddrRange ===
+=== 0x3B00: GetDataPhysAddrRange ===
+=== 0x3B00: GetAvailPhysAddrRange ===
+Input:
+  None
+Output:
+  Returns r3, r4.
+
+
+=== 0x3D00: MapMemory ===
+Input:
+  r3: source addr?
+  r4:
+  r5: size?
+  r6:
+
+
+== 0x4B00: SetDABR ==
+Sets the data address breakpoint register.
+Input:
+  r3: addr
+  r4: ? (bool)
+  r5: data write enable (bool)
+  r6: data read enable (bool)
+
+This writes the DABR register with BT=1 (breakpoint translation enabled). Then
+based on the flag in r4 it does some more unknown calls.
+
+Before doing anything it checks a flag, and if that flag is not set, it returns
+immediately.
+
+
+== 0x4B00: SetIABR ==
+Input:
+  r3: Addr
+  r4: ? (bool)
+
+Before doing anything it checks a flag, and if that flag is not set, it returns
+immediately.
+
+Input r4 is an unknown flag that does same thing as in SetDABR.
+
+
+=== 0x4F00: TalkToLoader ===
+
+Input:
+  r3: request_struct_ptr
+
+This syscall changes into loader context then calls loader entrypoint with the
+given request. See <ppc_modules/loader.txt> for more info.
+
+
+=== 0x5300: FlushCode ===
+=== 0x5400: FlushData ===
+Input:
+  r3: addr?
+  r4: size?
+
+Used by loader.
+
+=== 0x5700: FastClearMemory ===
+Input:
+  r3: addr?
+  r4: size?
+
+Used by loader to clear user bss. Only accessible to loader?
+
+
+=== 0x7500: QueryVirtAddr ===
+Input:
+  r3: VirtAddr context
+  r4: some offset?
+Output:
+  r3: 0=context error or PP=={0,3}
+      1=PP==1 (read)
+      2=PP==2 (readwrite)
+      3=PTE error
+      4=PTE error
+
+=== 0x8100: ZeroProcessMemory ==
+Input:
+  r3: Addr-range id
+Output:
+  r3: 1 if success, 0=failure
+
+This memsets a physmem-region to zeroes. The region is decided by r3, see table:
+
++----+----------------+----
+| r3 | Physaddr start | Size
++----+----------------+----
+|  4 |     0x34000000 | 0x1C000000
+|  5 |     0x28000000 | 0x8000000
+|  6 |     0x33000000 | 0x1000000
+|  7 |     0x50000000 | 0x40000000 or 0x80000000 depending if flags (?)
++----+----------------+----

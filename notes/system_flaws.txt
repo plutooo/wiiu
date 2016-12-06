@@ -1,0 +1,283 @@
+== KeDriver Race-condition (see KeDriver.c) ==
+== Found by: naehrwert ==
+== Fixed on: FW 5.5.0 (kernel 15702) ==
+
+Syscall 0x4800 (DriverCopyToSaveArea) will copy user specified input to an area
+pointed to by the driver context.
+
+Racing the function that retrieves the driver context from the global list can
+replace the heap contents with a user controlled buffer leading the write to
+end up at a user specified address.
+
+Thread 1 {
+    DriverCopyToSaveArea("X", data_to_write, ...)
+}
+
+Thread 2 {
+    //Alloc ctxt "Y", the save area of this one will be used to shadow ctxt "X".
+    DriverRegister("Y")
+
+    //Alloc ctxt "X".
+    DriverRegister("X")
+    //Hopefully here the first thread grabs the driver ctxt.
+    //Free ctxt "X".
+    DriverDeregister("X")
+
+    //Hopefully this allocation will end up where ctxt "X" points to.
+    DriverCopyToSaveArea("Y", [dst_addr]*0x13, ...)
+    //Get rid of it.
+    DriverDeregister("Y")
+}
+
+Heap layout:
+     sizeof(drv_ctxt) = 0x4C
+     sizeof(save_area) = 0x1000
+     Maybe register several drivers to fill up holes in the heap so that new
+     allocations will append.
+     [###] [ctxt "Y"] [ctxt "X"]
+     [###] [ctxt "Y"] [save area "Y"]
+
+
+== KeSetInfo type15 ==
+== Found by: plutoo ==
+
+If a specific bit in mode_flags is set, type15 can write to spr WPSAR, which
+triggers a CPU DMA to the physaddr written to WPSAR. In theory this can be
+used to write data into kernel memory. The content written is whatever is in
+the write gather pipe, which should be controlled by the user process.
+
+However, it is unknown how to set that mode_flags bit, so this is unavailable.
+
+
+== KeSystemFatal missing input check ==
+== Found by: plutoo ==
+
+In the KeSystemFatal syscall, a fatal-error struct is passed in r3. The pointer
+in r3 is not verified before read.
+
+If certain flags are set, this allows printing data from kernel into the log.
+One of the things printed is a string, it's unknown whether this can end up in
+a crash (probably not, a weird snprintf() function is used). Either way, this
+log is not possible to read on retail consoles, as far as we know.
+
+If other flags are set, it will str-read at most 0xFF from r3 into a buf in
+kernel-memory. It is unknown what happens with that string later.
+
+
+== KeGetProcessInfo(u8 *dstbuf, u32 length) ==
+== Found by: naehrwert ==
+== Fixed on: FW 5.5.0 (kernel 15702) ==
+
+This will leak kernel stack if supplied with a too large length parameter. 
+Internally the syscall will build the process info in a 0x300 bytes long buffer 
+with 0x30 bytes per info and copy it to dstbuf without checking length first.
+
+
+== JIT area executable in kernelmode ==
+== Found by: plutoo ==
+== Latest checked: FW 5.3.2 (kernel 11464) ==
+
+The JIT area (0x01800000+) is executable from kernel-mode.
+
+
+== KeIPCKDriver_SubmitRequest(ios_packet_t *pkt) ioctlv physaddr ToCToU ==
+== Found by: plutoo, naehrwert ==
+
+For IOS ioctlv, the vector is stored as a table in userspace with virt and phys
+pointers. After the kernel has written the physaddr, you can race it and
+overwrite it from userspace before the ARM9 reads it.
+
+This allows you to ask the ARM9 to output to any physaddr, including overwrite
+the kernel.
+
+
+== IOSU Syscall 6: Signed comparison ==
+== Found by: plutoo ==
+== Not fixed in 5.5.0 ==
+
+Setting bit31 in r0 will make it pass the "if(r0 < 0x1D)" check, since r0 will
+be negative. After that, 0x20 bytes from addr *(u32*)(0x081430C0 + 4*r0) to a
+user-ptr in r1. This allows you to dump 0x20 bytes from any addr from
+kernel-mode.
+
+
+== IOSU Syscall 0xC: Integer overflow ==
+== Found by: plutoo ==
+== Not fixed in 5.5.0 ==
+
+Supplying a big value in num_entries will overflow when checking the user-ptr:
+   kernel::mmu::ValidateUserAddr(entries, num_entries*4, 4, get_current_pid(), 0);
+
+This will lead to an incorrect user-addr validation. Gives kernel code
+execution.
+
+
+== IOSU Syscall Handler Off-by-one ==
+== Found by: plutoo ==
+== Not fixed in 5.5.0 ==
+
+The syscall handler will return to userspace if syscall id > 0x94. But there are
+only 0x94 syscalls, which means that the range is 0-0x93. Supplying syscall will
+make kernel jump to (u32) 2.
+
+This is probably not exploitable.
+
+
+== IOSU Ioctlv ToCToU ==
+== Found by: plutoo, naehrwert ==
+== Exploited by: naehrwert ==
+== Fixed on: 5.2.0 ==
+
+When using more than 8 ioctlv vectors, the IOS kernel will verify the vectors in
+place, without first copying them to internal ARM9 mem. This allows the PowerPC
+to overwrite the vector pointer/size fields after the ARM9 kernel has validated
+them.
+
+This is most likely exploitable.
+
+From 5.2.0 and forward, there's a per-device cap on the amount of ioctlv
+vectors making this attack only possible for devices that manually override the
+cap to something greater than 8, and doesn't verify the vector pointers. Such a
+device is not known to exist, thus this can be seen as fixed.
+
+
+== /dev/im Bad input-checking ==
+== Observed fixed: 5.3.2 ==
+
+In older versions of IOSU, the vector phys-addrs were not verified before read.
+This is a security issue because if there are more than 8 vectors, then PowerPC
+has access to the vectors and can race and overwrite them.
+
+The solution is (and was) to copy the vectors into ARM9-internal memory, and
+then verify them.
+
+
+== /dev/socket Bad input-checking ==
+== Observed fixed: 5.3.2 ==
+
+In older versions of IOSU, the handler for /dev/socket allowed any number of
+ioctlv vectors. If you passed more than 8, the vectors would be accessible
+from PowerPC. This was fixed by adding a check that the total number of
+vectors is <= 8.
+
+
+== IOSU kernel LocalHeap use-after-free ==
+== Found by: plutoo ==
+== Not fixed in 5.5.0 ==
+
+The ARM9 kernel keeps a table of the local-heap of each process. The local
+process heap has two heap_id's: one "normal" id and the alias 0xCAFE.
+
+If you "guess" the normal id and use it instead of 0xCAFE, the DestroyHeap
+syscall will destroy the given heap, but will not clean up the entry in the
+local-heap-table.
+
+If another process allocates a heap after that, the kernel will "think" this is
+your heap, and use it.
+
+Same thing goes for cross heaps; the cross-heap-table can never be cleaned up by
+DestroyHeap though; not even when you give it the alias 0xCAFF.
+
+
+== IOSU shared heaps ==
+== Found by: plutoo ==
+== Not fixed in 5.5.0 ==
+
+All processes have access to all process shared heaps.
+
+
+== IOSU Kernel AllocAlign NULL-deref ==
+== Found by: plutoo ==
+== Not fixed in 5.5.0 ==
+
+Feeding an invalid an heap_id to AllocAlign syscall will make the internal
+kernel function for kernel::heap::GetHeapFromId give a NULL-ptr for the heap
+struct. The syscall then does the following (heap being a NULL-ptr):
+
+    heap->u32_0x38 += 1;
+    heap->u32_0x3C  = heap_id;
+
+(Not sure about this because this makes no sense!)
+
+
+== IOSU Kernel MsgQueue event-listener use-after-free ==
+== Found by: plutoo ==
+== Not fixed in 5.5.0 ==
+
+A single bit is used to store whether the queue has been registered to one or
+more "events". When one queue is deregistered, it is cleared without checking if
+the queue still is registered to other "events".
+
+When destroying the event-handler, the kernel will think the queue is not
+referenced by any event, and will thus happily remove it despite a reference.
+
+For example, by doing the following:
+    RegisterEventHandler(my_queue, irq_id_1)
+    RegisterEventHandler(my_queue, irq_id_2)
+    UnregisterEventHandler(irq_id_1)
+    DestroyEventHandler(my_queue)
+
+The event-table will still contain an entry for my_queue for event irq_id_2.
+
+
+== IOSU Kernel Device-path string ToCToU ==
+== Found by: plutoo ==
+== Not fixed in 5.5.0 ==
+
+The function used to validate the given device path from the PowerPC does the
+following:
+
+    if(kernel::mmu::ValidatePowerPcAddressAndInvalidate(ptr, 32, 1)) {
+        size_t len = strnlen(ptr, 32);
+        if(len == 0 || len > 30)
+            return -4;
+
+        *out = ptr;
+        return 0; // Success
+    }
+
+Since the ptr is still writable from PowerPC after the strnlen, the check is
+useless. To fix this, they should copy the string into ARM9-only memory before
+verifying the length.
+
+This check is useless anyway, and doesn't give anything exploitable
+
+
+== IOSU Kernel CreateThread syscall arbitrary memset ==
+== Found by: plutoo, naehrwert ==
+== Not fixed in 5.5.0 ==
+
+Syscall 0 will do a memset32 with val=0xFA5A5A5A and optionally partially val=0
+on the thread_stack_ptr argument.
+
+
+== IOSU Kernel FreeAndClear unchecked memset size ==
+== Found by: plutoo ==
+== Found in: 5.3.2 ==
+
+The FreeAndClear syscall does not check memchunk-length when memsetting it to 0,
+allowing one to memset regions after user-memory to 0 as follows:
+
+1. Create a heap with the base addr in user-memory.
+2. Create a memchunk at end of heap.
+3. Modify the size field to go past the heap.
+4. Call FreeAndClear syscall on the memchunk ptr.
+5. Boom!
+
+
+== /dev/uhs/%d Ioctl 7,8 missing output length check ==
+== Found by: plutoo ==
+== Not fixed in 5.3.2 ==
+
+Writes to the out_buf for the ioctl without checking length. Thus PowerPC can
+let ARM write past a memory boundary by supplying the last accessible addr, with
+length 1. Might be possible to pwn PPC kernel with this.
+
+
+== /dev/uhs/%d Ioctl 8 race-condition ==
+== Found by: plutoo ==
+== Not fixed in 5.3.2 ==
+
+Byte at in_ptr+4 is verified to be <= 0x3F, however it is read again when
+actually used. Thus you could race this from PowerPC. Not sure exactly what will
+happen, at least an info-leak.

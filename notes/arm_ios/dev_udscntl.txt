@@ -1,0 +1,42 @@
+== /dev/udscntl ==
+Port of the 3DS "nwm::UDS" service. The ioctlv ids match exactly with the 3DS
+service (those less than 0x100).
+
+== Ioctls ==
++----------+------------------------------------+----+-----------+-----------+---------------------------+-----------------------+
+| Ioctl #  | Name                               | v? | In size   | Out size  | In vector sizes           | Out vector sizes      | //X = checked for vuln
++----------+------------------------------------+----+-----------+-----------+---------------------------+-----------------------+
+|        2 | Scrap                              | Ye |        ?v |        ?v | -                         | -                     |
+|        3 | Finalize                           | Ye |        0v |        1v | []                        | [4]                   | //X
+|        4 | CreateNetwork                      | Ye |        2v |        1v | [0x108, var]              | [4]                   | *(u32*)vec2.phys = uds_CreateNetwork(*(this+0x20), unk, 0, vec0.phys, vec1.phys, vec1.size, 0, 0, 0, 0, 0, &ios_request, vec2.phys); //?
+|        5 | EjectClient                        | Ye |        1v |        1v | [2]                       | [4]                   | *(u32*)vec1.phys = uds_EjectClient(*(this+0x20), *(u16*)vec0.phys); //X
+|        6 | EjectSpectator                     | Ye |        0v |        1v | []                        | [4]                   | *(u32*)vec0.phys = uds_EjectSpectator(*(this+0x20)); //X
+|        7 | UpdateNetworkAttribute             | Ye |        2v |        1v | [2, 1]                    | [4]                   | *(u32*)vec2.phys = uds_UpdateNetworkAttribute(*(this+0x20), *(u16*)vec0.phys /*bitmask*/, *(u8*)vec1.phys /*clear_or_set*/); //X
+|        8 | DestroyNetwork                     | Ye |        0v |        1v | []                        | [4]                   | *(u32*)vec0.phys = uds_DestroyNetwork(*(this+0x20)); //X
+|      0xB | GetConnectionStatus                | Ye |        0v |        2v | []                        | [4, 0x30]             | //X
+|      0xD | GetNodeInformation                 | Ye |        1v |        2v | [2]                       | [4, 0x28]             | *(u32*)vec1.phys = uds_GetNodeInformation(*(this+0x20), vec2.phys, *(u16*)vec0.phys); //X
+|     0x10 | SetApplicationData                 | Ye |        1v |        1v | [var]                     | [4]                   | *(u32*)vec1.phys = uds_SetApplicationData(*(this+0x20), vec0.phys, vec0.size); //X
+|     0x11 | GetApplicationData                 | Ye |        0v |        3v | []                        | [4, var, 4]           | //X
+|     0x12 | Bind                               | Ye |        4v |        1v | [4, var, 1, 2]            | [4]                   | *(u32*)vec4.phys = uds_Bind(*(this+0x20), *(u32*)vec0.phys, vec1.phys, vec1.size, *(u8*)vec2.phys, *(u16*)vec3.phys); //?
+|     0x13 | Unbind                             | Ye |        1v |        2v | [4]                       | [4, 0x10]             | //X
+|     0x14 | PullPacket                         | Ye |        2v |        4v | [4, 1]                    | [4, var, 4, 2]        | //?
+|     0x15 | SetMaxSendDelay                    | Ye |        1v |        1v | [8]                       | [4]                   | //X
+|     0x17 | SendTo                             | Ye |        6v |        1v | [4, 2, 1, var, 4, 1]      | [4]                   | //?
+|     0x1A | GetChannel                         | Ye |        0v |        2v | []                        | [4, 1]                | //X
+|     0x1B | InitializeWithVersion              | Ye |        2v |        1v | [0x28, 2]                 | [4]                   | //X
+|     0x20 | Flush                              | Ye |        1v |        1v | [4]                       | [4]                   | //?
+|    0x101 | ?                                  | Ye |        ?v |        ?v | [4, 4]                    | []                    |
+|    0x102 | PollStateChange                    | Ye |        1v |        1v | [1]                       | [4]                   |
+|    0x103 | ?                                  | Ye |        ?v |        ?v | []                        | [4, 6]                |
+|    0x104 | CreateBridgeNetwork                | Ye |        5v |        1v | [0x108, var, var, var, 1] | [4, 6]                |
+|    0x105 | GetConnectionStatusForBridge       | Ye |        0v |        2v | []                        | [4, 0x94]             |
+|    0x106 | GetNodeInformationForBridge        | Ye |        1v |        2v | [2]                       | [4, 0x28]             |
+|    0x107 | AddOutsideClient                   | Ye |        1v |        1v | [0x28]                    | [4]                   | //X
+|    0x108 | DeleteOutsideClient                | Ye |        1v |        1v | [2]                       | [4]                   |
+|    0x109 | SendBridgedPacket                  | Ye |        7v |        1v | [4, 2, 2, 1, var, 4, 1]   | []                    |
+|    0x10A | BindForBridge                      | Ye |        2v |        1v | [4, var]                  | [4]                   |
+|    0x10B | PullBridgedPacket                  | Ye |        2v |        6v | [4, 1]                    | [4, var, 4, 2, 2, 1]  |
+|    0x10C | GetIopUtilizationRate              | Ye |        0v |        2v | []                        | [4, 4]                | //X
+|    0x10D | GetIobPoolsUtilization             | Ye |        0v |        3v | []                        | [4, 4, 0x60]          | //X
+|    0x301 | ?                                  | Ye |        1v |        2v | [0x10]                    | [4, 4]                | //X
++----------+------------------------------------+----+-----------+-----------+---------------------------+-----------------------+

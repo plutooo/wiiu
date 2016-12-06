@@ -1,0 +1,82 @@
+== OSQueryVirtAddr ==
+Returns 0 for all addresses < 0xFFFFE000, above that addr unknown (probably also 0).
+
+
+== OSGetMapVirtAddrRange ==
+== OSGetDataPhysAddrRange ==
+== OSGetAvailPhysAddrRange ==
+
+Returns start_addr=0, end_addr=0.
+
+
+== OSGetCodegenVirtAddrRange ==
+
+Returns start_addr=0x01800000, end_addr=0x02000000.
+
+
+== OSValidateAddressSpaceRange ==
+
+These are the addr-ranges returned by OSValidateAddressSpaceRange under 5.3.2
+webkit. It appears that these addrs have no strict relation to the webkit
+process (?).
+
++----------+----------+
+| Start    | End      |
++----------+----------+
+| 01000000 | 01800000 |
+| 0d800000 | 277a0000 |
+| e0000000 | e4000000 |
+| e8000000 | ea000000 |
+| f4000000 | f6800000 |
+| f8000000 | fb800000 |
+| fc000000 | fc2c0000 |
+| fc300000 | fc400000 |
+| fd000000 | fd400000 |
+| fe000000 | fe800000 |
+| ff200000 | ff300000 |
+| ffc00000 | ffc20000 |
+| ffc40000 | ffc60000 |
+| ffc80000 | ffca0000 |
+| ffce0000 | ffd00000 |
+| ffe00000 | ffe20000 |
+| ffe40000 | ffe60000 |
+| ffe80000 | ffee0000 |
+| fff80000 | fffa0000 |
+| fffc0000 | fffe0000 |
++----------+----------+
+
+
+== OSEffectiveToPhysical ==
+
+These are the addr-ranges converted using OSEffectiveToPhysical.
+
++----------+----------+----------+---+---+-------+------+----
+| VA       | PA       | Size     | R | W | L1DMA | DMAE | Description
++----------+----------+----------+---+---+-------+------+----
+| 01000000 | 32000000 | 00800000 | y | n | No    | No   | loader.elf and coreinit .text
+| 0d800000 | 4d800000 | 02800000 | y | n | No    | No   |
+| 10000000 | 34000000 | 177a0000 | y | y | Yes   | No   |
+| e0000000 | 14000000 | 04000000 | y | y | No    | Yes  | "Foreground Bucket"
+| e8000000 | d0000000 | 02000000 | y | y | No    | No   |
+| f4000000 | 00000000 | 02000000 | y | y | Yes   | Yes  |
+| f6000000 | 1b000000 | 00800000 | y | n | No    | No   | "debug.elf" is loaded here on non-PROD kernels? Contains an ELF header @+0, then rest is uninitialized/encrypted?
+| f8000000 | 18000000 | 03000000 | y | n | No?   | Yes  | "Shared Area"
+| fb000000 | 1c800000 | 00800000 | y | y | No?   | No   |
+| fc000000 | 0c000000 | 002c0000 | n | n?| No?   | No   | I/O
+| fc300000 | 0c300000 | 00100000 | n | n?| No?   | No   | I/O
+| fd000000 | 0d000000 | 00400000 | n | n?| No?   | No   | I/O, @+0x400=IOS IPC?
+| fe000000 | 1c000000 | 00800000 | n | n?| No?   | No   |
+| ff200000 | 1b800000 | 00100000 | n | n?| No?   | No   | "Kernel Work Area Heap"
+| ffc00000 | ffc00000 | 00020000 | y | y | No?   | No   | 0x0badbabe
+| ffc40000 | ffc40000 | 00020000 | y | y | No?   | No   | 0x0badbabe
+| ffc80000 | ffc80000 | 00020000 | y | y | No?   | No   | 0x0badbabe
+| ffce0000 | 00000000 | 00020000 | n | n?| No?   | Yes  |
+| ffe00000 | ffe00000 | 00020000 | n | n?| No?   | No   |
+| ffe40000 | ffe40000 | 00020000 | n | n?| No?   | No?  |
+| ffe80000 | ffe80000 | 00060000 | n | n?| No?   | No?  |
+| fff80000 | ffe60000 | 00020000 | y | n | No?   | No?  |
+| fffc0000 | 1bfe0000 | 00020000 | y | y | No?   | No   |
++----------+----------+----------+---+---+-------+------+----
+
+DMAE allowed physaddrs seems to be: 00000000-02000000 and 14000000-1B000000.
+DMAE cannot access physaddr 0x10000000 or 0x08000000, the IOSU MEM2 portion(s).

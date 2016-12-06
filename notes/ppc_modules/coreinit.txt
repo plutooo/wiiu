@@ -1,0 +1,39 @@
+coreinit.rpl is the main library for the Cafe OS. It implements the scheduler,
+heap allocator, sync primitives, syscalls, atomic operations, etc.
+
+The PPCMt*/PPCMf* functions are for reading/writing special purpose registers,
+however since most of those are supervisor-only (?!). They will result in
+crashes when called by userspace. Thus they appear to be useless.
+
+== OSReadRegister8/16/32 ==
+Input:
+   r3 = region_id
+   r4 = register_offset
+Output:
+   none
+
+
+The region_id gives the base-addr as seen in this table:
+
++-------------+---------------------------------
+| Region Id   | Physical addr
++-------------+---------------------------------
+|           0 | 0x0C1E0000
+|           1 | 0x0C280000 (only inited if some flags are set)
+|           2 | 0x0C200000 (only inited if some flags are set)
+|          11 | 0x0D000000
+|          12 | 0x0D006400
+|          13 | 0x0D006C00
+|          14 | 0x0D006E00
+|          15 | 0x0D006800
++-------------+---------------------------------
+
+
+== OSReadRegister8/16/32 ==
+Input:
+   r3 = value
+   r4 = region_id
+   r5 = register_offset
+Output:
+   none
+

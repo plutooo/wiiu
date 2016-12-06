@@ -1,0 +1,113 @@
+== /dev/fpd ==
+Friend and Playtime deamon?
+
+== Ioctls ==
++----------+------------------------------------+----+-----------+-----------+------
+| Ioctl #  | Name                               | v? | In size   | Out size  | Input Args
++----------+------------------------------------+----+-----------+-----------+------
+|     2775 | Login                              | Ye?|        ?  |        ?  |
+|     2776 | Logout                             | Ye |        ?  |        ?  |
+|     2777 | HasLoggedIn                        | Ye |        ?  |        ?  |
+|     2778 | IsOnline                           | Ye |        ?  |        ?  |
+|     27D9 | GetMyPrincipalId                   | Ye |        ?  |        ?  |
+|     27DA | GetMyAccountId                     | Ye |        ?  |        ?  |
+|     27DB | GetMyScreenName                    | Ye |        ?  |        ?  |
+|     27DC | GetMyMii                           | Ye |        ?  |        ?  |
+|     27DD | GetMyProfile                       | Ye |        ?  |        ?  |
+|     27DE | GetMyPreference                    | Ye |        ?  |        ?  |
+|     27DF | GetMyPresence                      | Ye |        ?  |        ?  |
+|     27E0 | IsPreferenceValid                  | Ye |        ?  |        ?  |
+|     27E1 | IsFriendRequestAllowed             | Ye |        ?  |        ?  |
+|     283D | GetFriendList                      | Ye |        ?  |        ?  |
+|     283E | GetFriendListAll                   | Ye |        ?  |        ?  |
+|     283F | GetFriendAccountId                 | Ye |        ?  |        ?  |
+|     2840 | GetFriendScreenName                | Ye |        ?  |        ?  | check for vuln?
+|     2841 | GetFriendMii                       | Ye |        ?  |        ?  |
+|     2842 | GetFriendProfile                   | Ye |        ?  |        ?  |
+|     2843 | GetFriendApprovalTime              | Ye |        ?  |        ?  |
+|     2844 | GetFriendSortTime                  | Ye |        ?  |        ?  |
+|     2845 | GetFriendPresence                  | Ye |        ?  |        ?  |
+|     2846 | GetFriendRelationship              | Ye |        ?  |        ?  |
+|     28A1 | GetBlackList                       | Ye |        ?  |        ?  |
+|     28A2 | GetBlackListAccountId              | Ye |        ?  |        ?  |
+|     28A3 | GetBlackListAdditionalTime         | Ye |        ?  |        ?  |
+|     2905 | GetFriendRequestList               | Ye |        ?  |        ?  |
+|     2906 | GetFriendRequestAccountId          | Ye |        ?  |        ?  |
+|     2907 | GetFriendRequestMessageId          | Ye |        ?  |        ?  |
+|     2969 | UpdateGameMode                     | Ye |        ?  |        ?  |
+|     296A | UpdateGameMode                     | Ye |        ?  |        ?  |
+|     296B | UpdateGameModeDescription          | Ye |        ?  |        ?  |
+|     2AF9 | AddRecentPlayRecord                | Ye |        ?  |        ?  | check for vuln?
+|     2B5D | ?                                  | Ye |        ?  |        ?  | check for vuln?
+|     4EE9 | GetMyComment                       | Ye |        ?  |        ?  |
+|     4EEA | GetMyPlayingGame                   | Ye |        ?  |        ?  |
+|     4F4D | GetFriendComment                   | Ye |        1v |        2v | [0]: {u32 size}, [1]: {u32 pidList[size]}
+|     4F4E | GetFriendPlayingGame               | Ye |        ?  |        ?  |
+|     4F4F | GetFriendPresenceEx                | Ye |        ?  |        ?  |
+|     4FB1 | GetRecentPlayRecord                | Ye |        ?  |        ?  | check for vuln?
+|     4FB2 | IsRecentPlayRecordCorrupted        | Ye |        ?  |        ?  |
+|     5015 | UpdateGameModeEx                   | Ye |        ?  |        ?  |
+|     5079 | ?                                  | Ye |        ?  |        ?  | check for vuln?
+|     50DD | UnlockParentalControlTemporarily   | Ye |        ?  |        ?  |
+|     7595 | IsRequestBlockForced               | Ye |        ?  |        ?  |
+|     75F9 | GetFriendListEx                    | Ye |        ?  |        ?  |
+|     76C1 | GetFriendRequestListEx             | Ye |        ?  |        ?  |
+|     765D | GetBlackListEx                     | Ye |        ?  |        ?  |
+|     7728 | UpdatePlayingGame                  | Ye |        ?  |        ?  |
+|     77ED | ?                                  | Ye |        0v |        2v |
+|     77EE | ?                                  | Ye |        0v |        1v |
+|     7851 | ?                                  | Ye |        0v |        1v |
+|     7852 | ?                                  | Ye |        0v |        1v |
+|     7853 | ?                                  | Ye |        0v |        1v |
+|     78B5 | AddRecentPlayRecordEx              | Ye |        0v |        2v |
+|     78B6 | DeleteRecentPlayRecordAll          | Ye |        ?v |        ?v | ?
+|     7919 | ?                                  | Ye |        3v |        0v |
+|     7854 | ?                                  | Ye |        0v |        2v |
+|     797D | ?                                  | Ye |        0v |        1v |
+|     79E1 | DeleteSaveDirectory                | Ye |        0v |        2v |
+|     9CA5 | UpdatePlayingOverlayApplication    | Ye |        0v |        2v |
+|     9CA6 | UpdateGameModeForOverlayApplication| Ye |        0v |        2v |
+|     9D09 | GetLastLedEvent                    | Ye |        0v |        2v |
+|     9D0A | ClearLedEvent                      | Ye |        0v |        2v |
+|     9D0B | SetLedEventMask                    | Ye |        0v |        2v |
+|    15FF5 | SetNotificationHandler             | Ye |        0v |        1v | [u32 notificationMask] This one sets the mask in a table indexed by pid.
+|    15FF6 | ?                                  | Ye |        2v |        0v |
+|    15FF7 | ResultToErrorCode                  | Ye |        1v |        0v |
+
+.. and more ..
+
+
+== Ioctlv handling ==
+FPD has its own way of handling ioctlv's. Pseudocode:
+
+class fpd_ioctlv_cmd {
+    // @+0: vtable
+    ios_request* req; // @+4
+    u32 cmd_id;       // @+8
+    u32 pid;          // @+12
+    std::vector<ios_vecs*> safe_vectors; // @+16
+    //    u32   _vec_unk;                // @+16
+    //    void* _vec_last_free_element;  // @+20
+    //    void* _vec_last_element;       // @+24
+};
+
+int fpd_ioctlv_cmd::fill(fpd_ioctlv_cmd* this, ios_request* req) {
+    for(i=0; i<req->num_out; i++) {
+        ios_vec v;
+        v.size = req->vec[req->num_in+i].size;
+        v.virt = 0;
+
+        v.phys = malloc(v.size);
+        if(v != NULL) {
+            memcpy(v.phys, req->vec[req->num_in+i].phys, v_size);
+        }
+
+        this.safe_vectors.push_back(v);
+    }
+}
+
+int ioctlv_cmd::execute(fpd_ioctlv_cmd* this) {
+    switch(this->cmd_id) {
+        // < Different cmd handlers here.. >
+    }
+}

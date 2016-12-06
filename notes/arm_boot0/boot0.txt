@@ -1,0 +1,262 @@
+
+boot0 is the bootrom of the arm9. It is possible to dump from vWii mode, which
+it shouldn't be. It heavily outputs on the debug GPIOs.
+
+
+--------------------------------------------------------------------------------
+MainBootFunc: (TODO: Describe path leading up to this..)
+
+In order of execution:
+
+   Interesting write "0xD80018C |= 0xC00;". (boot0 control register)
+   It then inits AES/SHA1 HW by writing zeroes to all regs.
+   Interesting write "0xD8005B4 = (0xD8005B4 & 0xFFFFF3FF) | 0xC00;"
+
+   Then it reads the following from OTP:
+        KeyId: 0x20, Size:  4 bytes, Name: otp::DebugConfig
+        KeyId: 0x21, Size:  4 bytes, Name: otp::HardwareConfig
+        KeyId: 0x22, Size:  4 bytes, Name: otp::SeepromConfig
+        KeyId: 0x28, Size: 16 bytes, Name: otp::KeyA
+        KeyId: 0xE8, Size: 16 bytes, Name: otp::KeyB
+
+   (otp::KeyA is a key used for SEEPROM decryption.)
+   (otp::KeyB is a key used to decrypt boot1 (?), that's probably why it is in
+    another OTP bank from the rest; it's very secret.)
+
+   Then it outputs some bits of otp::HardwareConfig on debug GPIO's.
+   After that, it outputs 0xA on debug port.
+
+   Then it inits the SEEPROM using the otp::SeepromConfig, and outputs
+   0xB on the debug port.
+
+   If bit30 of otp::DebugConfig is not set, it will output 0xC1 and panic with
+   val=2. Panic means:
+
+      0. Memset the buf for both otp::KeyA/B to 00's.
+      1. Output <val>.
+      2. Sleep for a while.
+      3. Output a byte from some internal state.
+      4. Sleep for a while.
+      5. Mirror debug gpio inputs.
+      6. Goto 1.
+
+   If bit31 of otp::DebugConfig is set, it means RSA+AES crypto is enabled.
+
+   Bit27 and bit28 decide what RSA key to use. If both are set, it outputs 0xC2
+   and panics with val=1. Assumed is that one key is debug key, and that one is
+   retail.
+
+   Next, it loads things from the SEEPROM. It reads the following offsets:
+         Offset: 0x1C0, Size: 16 bytes, Name: seeprom::BlockA   (nand_cfg)
+         Offset: 0x1D0, Size: 16 bytes, Name: seeprom::BlockB   (partition_blk0)
+         Offset: 0x1E0, Size: 16 bytes, Name: seeprom::BlockC   (partition_blk1)
+
+    Each one is decrypted with otp::KeyA if AES crypto enabled, otherwise
+    plaintext is used.
+
+    If AES crypto enabled, it then verifies that:
+       crc32(seeprom::BlockA, 0xC) == *(u32*)seeprom::BlockA[0xC]
+    If mismatch, it outputs 0xC3 on debug port and panics with val=1.
+
+    If AES crypto disabled, then two things can happen on crc32 mismatch:
+       * It ignores it.
+       * It memsets entire seeprom::BlockA to 00's. This happens if last u32 of
+         BlockA is non-zero.
+
+     BlockA is read as if it has the following structure:
+        u16 unk1;      // bit10-14: ?
+        u16 flags;     // bit15: Unknown NAND-reading flag.
+        u32 nand_cfg;  // Written to NAND_CFG.
+        u32 nand_unk1; // Written to NAND_UNK1.
+        u32 crc;
+
+    Next, it outputs 0xF on the debug port, and verifies that blockB and blockC
+    have valid CRC32's. If both have invalid CRC32's, it outputs 0xC4 and
+    panics with val=1.
+
+    These blocks are now called the nand_partition_block. There are two of them
+    in OTP (one for each partition maybe?), and it will pick the valid one.
+
+    The nand_partition_blocks have the following structure:
+        u16 prio;   // Highest value decides which block to use.
+        u16 sector; // NAND sector to read from, bit12: unknown NAND flag?
+        <rest ignored?>
+        u32 crc;
+
+    It will then choose to use either blockB or blockC, as follows:
+        blockC   if only blockC is valid.
+        blockB   if only blockB is valid.
+        blockC   if both are valid and blockB.prio < blockC.prio.
+        blockB   if both are valid and opposite of ^.
+
+    <It does some more stuff with nand_partition_block here>
+
+    Bit12 of the nand_partition_block::flags field decides whether or not to set
+    bit1 of 0xD010018 (unknown what it does).
+
+    Next up it tries to init the NAND, this init can fail somehow. If it fails,
+    a variable error_code is set to 0xDA and it continues at
+    [AFTER_NAND_READING].
+
+    If it succeeds, 0x14 is outputted on debug port and it starts a NAND read:
+       * output_ptr  = 0xD400000
+       * nand_sector = nand_partition_block.sector << 6
+       * num_sectors = 1 (each sector = 0x800 bytes)
+
+    This is reading the boot1 header from NAND.
+
+    If NAND read fails, error_code is set to 0xD1 and it continues at
+    [AFTER_NAND_READING].
+
+    It then memcpy's 0xD4001A0 size 0x60 to an internal buffer. This is actually useless and
+	gets overwritten by ParseNandHeaderAndVerifyRsa() later on.
+
+    Then it reads the size of boot1 from the NAND header. It makes sure that it
+    isn't greater than 0xF000, since reading more than that would overflow the
+    buffer @ 0xD400000 into the code (which is based at 0xD410000).
+
+    Because boot1 starts @ offset 0x200 from the sector, it first adds 0x200 and
+    then rounds upwards to 0x800-alignment.
+
+    The code looks like this:
+        boot1_size = (*(u32*)0xD4001AC + 0x9FF) & 0xFFFFF800; // in bytes.
+
+        if(boot1_size == 0 || boot1_size > 0xF000) {
+            error_code = 0xD6;
+            goto [AFTER_NAND_READING];
+        }
+		
+	It is possible to overflow the size check, which causes boot0 to read only 1 sector
+	in the following code.
+	This triggers a useless bug in the ParseNandHeaderAndVerifyRsa() function when the
+	boot1 header (read by the following nand_read() call) contains a larger boot1 size
+	than what has been actually read.
+
+    Then it does another NAND-read:
+       * output_ptr  = 0xD400000                        (same as before)
+       * nand_sector = nand_partition_block.sector << 6 (same as before)
+       * num_sectors = boot1_size / 0x800
+
+    If NAND read fails, error_code is set to 0xD1 and it continues at
+    [AFTER_NAND_READING].
+
+    Now, if crypto is enabled, the header read from NAND is parsed somewhat and
+    RSA signature is verified @ 0xD400000 using the RSA modulus selected above.
+
+    If RSA signature check fails, error_code is set by reading debug port GPIO
+    pins from the HW register. It assumes that this has retained the same value
+    as written to it by the ParseNandHeaderAndVerifyRsa() function that
+    previously failed.
+
+    All fail-paths in the ParseNandHeaderAndVerifyRsa() function sets those
+    debug GPIO's to something non-zero.
+
+    After the header has been parsed and RSA-verified, it decrypts boot1 at ptr
+    (u8*)(0xD4000000+0x200) in chunks of 0x1000 bytes with otp::KeyB.
+
+    IV used for this decryption is hardcoded: 4FCD24A0E4D3AB6FAE8DFD8108581DCF.
+    If all this has gone well, error_code is 0.
+
+[AFTER_NAND_READING]:
+    (This is where it ends up both when NAND reading succeeded and failed for
+    various reasons. It will also end up here if failed to verify the header
+    read from NAND; both RSA and otherwise.)
+
+    It outputs 0x1B on debug port. Then it does something with the HW_TIMER
+    based on blockA::unk1 bit 10-14.
+
+    Next it writes "0xD800194 |= 0x100000;", which would perform a reboot on
+    an old Wii. This does something else on WiiU. After that, it does
+    a lot of crap with the HW @ addr 0xD006800+.
+
+    This new HW pokes can enable a second bootup procedure instead of panic:ing.
+    In that case, it outputs 0x1E on the debug port, and sleeps based on
+    blockA::flags bit8-10. The secondary bootup medium is the sdcard slot.
+
+    If this second bootup procedure is not found/enabled, any non-zero
+    error_code will cause a panic.
+
+    TODO: Describe the second-bootup-procedure in more detail.
+
+    Then, finally:
+          * It outputs 0x25 on the debug port.
+          * Memsets both AES-keys to zeroes.
+          * Writes number-of-timer-ticks-it-took-to-execute-entire-bootrom to
+            0xD417FE0.
+          * Returns 0xD400200;
+
+
+--------------------------------------------------------------------------------
+Nand Header
+
+We can deduce that the header read from NAND has the following structure:
+
+    char unsigned_info_region[0x20]; // Offset 0
+    char rsa_sig[0x180];             // Offset 0x20
+    char signed_info_region[0x60];   // Offset 0x1A0
+
+    (total size: 0x200 bytes)
+
+The signed_info_region has the following structure, and is covered by the RSA
+signature:
+
+    u16  zero1;            // Must be 0 or error.
+    u16  zero2;            // Must be 0 or error.
+    u32  sector_type;      // Must be 0x21(recovery) or 0x22(normal), otherwise
+                           //     panic.
+    u32  boot1_size_align; // This is a size of boot1 aligned to 0x1000. If not
+                           //     aligned to 0x1000 or zero, error.
+    u32  boot1_size;       // This is the size of boot1 in bytes. First time
+                           //     this is read w/o checking RSA signature.
+    u8   boot1_hash[0x14]; // SHA1 of boot1, size being aligned to 0x1000.
+
+
+--------------------------------------------------------------------------------
+ParseNandHeaderAndVerifyRsa():
+
+    It copies 0x180 bytes from nand_header+0x20 to an rsa_buf.
+
+    It overwrites the old_header_buf with nand_header+0x1A0 size 0x60, and
+    calculates the SHA1 of this region. It then verifies that the signature
+    found in rsa_buf+4 decrypts to the SHA1 calculated above.
+
+    If RSA verification fails, it outputs 0xE1 on debug port and returns 0.
+
+    Then it verifies that the u16 @ buf[0] is 0, otherwise it outputs 0xE2 and
+    returns 0. And then it verifies that the u16 @ buf[1] is 0, otherwise 0xE3
+    and returns 0.
+
+    Then it verifies that bytes @ offsets 0x28..0x60 (not inclusive) is 0. (?)
+    Otherwise it outputs 0xE4 and returns 0.
+
+    Then it reads the u32 @ buf+4.
+
+    If it is 0x21:
+         It checks if is_recovery_mode is 1, and if so errors with 0xE7.
+
+         Next it checks if the u32 @ buf+0x24 == nand_partition_block.prio, and
+         if not it errors with 0xE6.
+
+    If it is 0x22:
+         It checks if is_recovery_mode is 0, and if so errors with 0xE7.
+
+    If it is anything else, it errors with 0xE7.
+
+    Then, it checks that the u32 at buf+0xC is aligned to 0x1000 and nonzero. If
+    not, it errors with 0xE8.
+
+    Next up, it hashes 0xD400200+ with SHA1 in chunks of 0x1000 bytes. This is
+    pretty odd because it's not aligned to 0x1000.
+
+    The number of chunks to hash is given by the upper 20 bits of the u32 at
+    buf+0xC.
+
+    And then it verifies that this hash matches the hash found at buf+0x10.
+    On mismatch it errors with 0xE9. Otherwise it returns upper 20 bits of the
+    u32 at buf+0xC.
+
+
+--------------------------------------------------------------------------------
+Rsa::Verify():
+
+    TODO

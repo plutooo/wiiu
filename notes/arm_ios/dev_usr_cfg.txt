@@ -1,0 +1,38 @@
+== /dev/usr_cfg ==
+User config, shortened to "UC" in coreinit.
+
+== Ioctls ==
++----------+------------------------------------+----+-----------+-----------+------
+| Ioctl #  | Name                               | v? | In size   | Out size  | Input Args
++----------+------------------------------------+----+-----------+-----------+------
+|     0x30 | ReadSysConfig                      | Ye |        0w |     var w |
+|     0x31 | WriteSysConfig                     | Ye |        0w |     var w | // wtf, no input vectors?
+|     0x32 | DeleteSysConfig                    | Ye |        1w |        1w |
+|     0x33 | ListSysConfig                      | Ye |        0w |        1w |
+|     0x34 | QuerySysConfig                     | Ye |        0w |        1w |
++----------+------------------------------------+----+-----------+-----------+------
+
+
+== The ioctlv >= 8 fix ==
+To get around the vuln with kernel not copying ioctlv vectors if there are more
+than 8, the user_cfg process copied the vectors into internal memory and
+verifies it itself.
+
+The loop looks like this:
+
+--
+    For each vector: // Wat does this do?
+        If vector.physaddr == 0 And vector.size != 0:
+            If syscall_8A(vector.physaddr, vector.size) < 0:
+                Fail;
+        Else:
+            Break;
+
+    For each vector:
+        If vector.physaddr == 0 And vector.size == 0:
+            Continue;
+        If syscall_ValidatePowerPCRange(vector.physaddr, vector.size) < 0:
+            Fail;
+
+    Pass;
+--

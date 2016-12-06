@@ -1,0 +1,20 @@
+== /dev/nsec/nss ==
+Signatures, certificates and things like that?
+
+== Ioctlvs ==
++----------+------------------------------------+----+-----------+-----------+------
+| Ioctl #  | Name                               | v? | In size   | Out size  | Input Args
++----------+------------------------------------+----+-----------+-----------+------
+|        1 | NSSSecureStoreImportObject         | Ye |        2v |        0v |
+|        2 | NSSSecureStoreExportObject         | Ye |        1v |        2v |
+|        3 | NSSSecureStoreDeleteObject         | No |         8 |         0 |
+|        4 | NSSExportDeviceCertChain           | Ye |        1v |        3v |
+|        5 | NSSCreateSignatureContext          | No |       0xC |         0 |
+|        6 | NSSDestroySignatureContext         | No |         8 |         0 |
+|        7 | NSSSignatureSetPrivateKey          | No |       0xC |         0 |
+|        8 | NSSSignatureGetSignatureLength     | No |         4 |         0 |
+|        9 | NSSSignatureSignDigest             | Ye |        1v |        3v |
+|      0xA | NSSSignatureSetPrivateKeyExternal  | Ye |        2v |        0v |
+|      0xB | NSSSecureStoreDeleteAllObjects     | No |         4 |         0 |
+|      0xC | NSSSecureStoreDeleteTitleObjStore  | No |         8 |         0 |
++----------+------------------------------------+----+-----------+-----------+------

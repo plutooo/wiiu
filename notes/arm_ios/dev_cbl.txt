@@ -1,0 +1,11 @@
+== /dev/cbl ==
+Some kind of logging mechanism.
+
+== Ioctls ==
++----------+------------------------------------+----+-----------+-----------+------
+| Ioctl #  | Name                               | v? | In size   | Out size  | Input Args
++----------+------------------------------------+----+-----------+-----------+------
+|        1 | Log?                               | Ye |        0v |        1v | 0: [0x204 bytes]
+|        1 | AllocBlock?                        | No |      Even |         - | ?
+|        2 | FreeBlock?                         | No |         - |         - | < Args ignored.. >
+|        3 | SaveLog?                           | No |         8 |         ? | u64 request_mask;

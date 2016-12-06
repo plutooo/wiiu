@@ -1,0 +1,37 @@
+== Device /dev/socket/ ==
+POSIX sockets.
+
+== Ioctls ==
++----------+------------------------------------+----+-----------+-----------+------
+| Ioctl #  | Name                               | v? | In size   | Out size  | Input Args
++----------+------------------------------------+----+-----------+-----------+------
+|        1 | accept()                           | No |      0x18 |      0x18 |
+|        2 | bind()                             | No |      0x18 |         0 |
+|        3 | socketclose()                      | No |         4 |         0 |
+|        4 | connect()                          | No |      0x18 |         0 |
+|        6 | getpeername()                      | No |      0x18 |       var |
+|        7 | getsockname()                      | No |      0x18 |       var |
+|        8 | getsockopt()                       | Ye | -- TODO --
+|        9 | setsockopt()                       | Ye | -- TODO --
+|      0xa | listen()                           | No |         8 |         0 |
+|      0xc | recv()                             | Ye | -- TODO --
+|      0xd | recvfrom()                         | Ye | -- TODO --
+|      0xe | send()                             | Ye | -- TODO --
+|      0xf | sendto()                           | Ye | -- TODO --
+|     0x10 | shutdown()                         | No |         8 |         0 |
+|     0x11 | socket()                           | No |       0xC |         0 | {arg0, arg1, arg2}
+|     0x14 | simple_ping()                      | No |      0x14 |         0 |
+|     0x26 | ??                                 | Ye | -- TODO --
+|     0x27 | select()                           | No |      0x1C |      0x1C |
+|     0x29 | simple_ping_result()               | No |         4 |         4 |
+|     0x2d | socketclose_all()                  | No |         4 |         0 |
+|     0x2e | SOGetProxyConfig()                 | No |         4 |     0x1C8 |
+|     0x2f | getsocklibopt()                    | No |         8 |         8 |
+|     0x30 | setsocklibopt()                    | No |         8 |         0 |
+|     0x32 | clear_resolver_cache()             | No |         ? |         ? |
+|     0x33 | sendto_multi()                     | Ye | -- TODO --
+|     0x35 | recvfrom_multi()                   | Ye | -- TODO --
+|     0x36 | sendto_multi_ex()                  | Ye | -- TODO --
+|     0x37 | dns_abort_by_hname()               | No |     0x100 |         0 |
+|     0x38 | recvfrom_ex()                      | Ye | -- TODO --
+

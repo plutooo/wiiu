@@ -1,0 +1,44 @@
+== Nomenclature ==
+ RAMPID - RAM partition ID
+ UPID - Process ID
+
+== Processes ==
+ 0 Kernel
+ 1 Root
+ 2 Cafe Menu
+ 3 Reserved
+ 4 E Manual
+ 5 HBM (Home Button Menu)
+ 6 Error
+ 7 Sys App
+ 8 Browser
+ 9 Reserved
+10 Reserved
+11 FLV
+12 Download Manager
+13 Reserved
+14 Reserved
+15 App
+
+== PPC Kernel v.11464 validate_ram_partitions Table ==
++------+--------+---------------
+| UPID | RAMPID | Notes
++------+--------+---------------
+|   0  |    0   |
+|   1  |    1   | root.rpx
+|   2  |    7   | FG App
+|   F  |    7   | FG App
+|   5  |    5   | Home Menu
+|   6  |    6   | Error display
+|   8  |    4   | BG App
+|   3  |    4   | BG App
+|   4  |    4   | BG App
+|   7  |    4   | BG App
+|   9  |    4   | BG App
+|   A  |    4   | BG App
+|   B  |    4   | BG App
+|   C  |    4   | BG App
+|  10  |    4   | BG App
+|  11  |    4   | BG App
+|  1F  |    4   | BG App
++------+--------+---------------

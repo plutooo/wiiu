@@ -1,0 +1,65 @@
+== PowerPC ==
+The following are the allowed address-ranges for IPC requests, checked by IOS
+kernel:
+        0x28000000-0xD0000000,
+        0x14000000-0x1D000000,
+        0x00000000-0x02000000,
+        0x08000000-0x08120000
+
+The IOS kernel checks for integer overflow.
+
+
+When receiving a request, it first checks the ptr for the request-struct (size:
+56 bytes). Then it invalidates the ptr and memcpy's into an internal buffer.
+
+The struct looks like this:
+
+typedef struct {
+    u32 cmd;      // 1=Open, 2=Close, 3=Read, 4=Write, 5=Seek, 6=Ioctl, 7=Ioctlv
+    u32 err;      // @+4 Set to error-code by ARM9.
+    u32 fd;       // @+8
+    u32 unk;      // @+0xC
+    u32 node_id;  // @+0x10
+    u32 pid;      // @+0x14, pid of the requester. Must be < 16 for PowerPC.
+    u64 title_id; // @+0x18
+    u32 unk;      // @+0x20
+    u32 args[5];  // @+0x24
+} ipc_request;
+
+Before passed to internal functions for Ioctl(v) handling, the powerpc_pid is
+converted to a IOS pid by adding 14 to it.
+
+The handlers for the various cmds use the pid to determine what type of addrs
+are allowed:
+    If 0 < pid < 16 then it checks using ValidateArm9ProcessAddr,
+    else it uses the ValidatePowerPcAddr
+
+For the Open-cmd, it does not check the OpenFlagsStr ptr before reading it, when
+comparing it to various fixed strings, probably "r", "rw", "r+", etc..
+
+For the Ioctlv-cmd, if the sum (num_in+num_out) is <= 8, it will copy the vector
+to an internal buffer. Otherwise it will not, and use the PowerPc provided ptr.
+
+If any of the cmds return non-zero, indicating an error, the error code is
+written to @+4 of the struct. Then it calls the ipcFlush function to flush
+the result to the PowerPC:
+
+    switch(struct.cmd) {
+        case 3:
+            FlushDCache(struct.arg0, struct.err);
+            break;
+
+        case 6:
+            FlushDCache(struct.arg1, struct.arg2);
+            FlushDCache(struct.arg3, struct.arg4);
+            break;
+
+        case 7:
+            u32 num = struct.num_in + struct.num_out;
+
+            for(u32 i=0; i<num; i++)
+                FlushDCache(struct.vec[i].phys, struct.vec[i].size);
+
+            FlushDCache(struct.vec, 12*num);
+            break;
+    }

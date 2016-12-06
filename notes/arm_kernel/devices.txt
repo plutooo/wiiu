@@ -1,0 +1,8 @@
+typedef struct {
+    char  path[32];     // @+0
+    int   msgqueue_id;  // @+0x20
+    unk*  unk;          // @+0x24
+    int   feature_id;   // @+0x28
+    u16   path_len;     // @+0x2C
+    u32   max_vecs;     // @+0x3C, default: 8
+} device;

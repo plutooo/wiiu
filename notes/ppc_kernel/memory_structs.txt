@@ -1,0 +1,102 @@
+Each core (0-3) has a memory-struct-ptr at:
+    0xffe8591c + cpu_id*4
+
+This struct has the following structure:
+    u32 MemFlags;
+    u32 Core0_MemObj_Ptr;         @ 4  // CoreMemObj ptrs
+    u32 Core1_MemObj_Ptr;         @ 8
+    u32 Core2_MemObj_Ptr;         @ C
+    u32 MapVirtAddrRange_Start;   @ 10 // ProcMemObj starts here
+    u32 MapVirtAddrRange_Size;    @ 14
+    u32 DataPhysAddrRange_Start;  @ 18
+    u32 DataPhysAddrRange_Size;   @ 1C
+    u32 AvailPhysAddrRange_Start; @ 20
+    u32 AvailPhysAddrRange_Size;  @ 24
+
+Each CoreMemObj:
+    u32 ?;
+    u32 ?;
+    u32 ?;
+    u32 ?;
+    u32 MemChunksArray_Size; // This has value: 0x10 * num_memchunks.
+    u32 MemChunksArray_Ptr;  // Ptr to array of memchunk-objs.
+
+Each memchunk-obj (sizeof = 0x10 bytes):
+    u32 PhysBaseAddr;  // Physical addr for chunk.
+    u32 Size;          // Size in bytes.
+    u32 VirtBaseAddr;  // Virtual addr for chunk.
+    u16 Flags1;        // 0x4000=is_uncached
+    u16 Flags2;
+
+
+==sc::EffectiveToPhysical?(u32 addr)==
+
+    Loop through MemChunksArray, if chunk contains addr:
+        Return addr - chunk.pa_base + chunk.va_base
+
+    Else:
+       If (MemFlags & 1) is set:
+          If addr in range(0xA0000000, 0xBC000000):
+              Return addr + 0x94000000
+
+       If addr in range(MapVirtAddrRange_Start, MapVirtAddrRange_End):
+           new_addr = addr - MapVirtAddrRange_Start
+
+           If new_addr >= 0xFFFE0000: // Kernel memory-check lol.
+               KernelPanic();
+           Return WeirdTransformWithMutexLock(new_addr)
+
+    Return 0
+
+
+==sc::PhysicalToEffectiveCached(u32 addr)==
+
+    Loop through MemChunksArray:
+        If Flags2 & 0x2000:
+            Continue
+        If chunk doesn't contains addr:
+            Continue
+        If Flags1 & 0x4000:
+            Continue
+        Return addr - chunk.pa_base + chunk.va_base
+    Return 0
+
+
+==sc::PhysicalToEffectiveUncached(u32 addr)==
+
+    Loop through MemChunksArray:
+        If Flags2 & 0x2000:
+            Continue
+        If chunk doesn't contains addr:
+            Continue
+        If (Flags1 & 0x4000) == 0:
+            Continue
+        Return addr - chunk.pa_base + chunk.va_base
+    Return 0
+
+
+==sc::ValidateAddrRange(u32 addr, u32 size)==
+
+    If (addr+len) overflows:
+        Return 0
+    Loop through MemChunksArray:
+        If chunk doesn't contain addr or (addr+len):
+            Continue
+        If Flags2 & 0x2000:
+            Continue
+        Return 1
+    Return 0
+
+==sc::MapMemory(u32 addr1, u32 addr2, u32 size, u32 flags)==
+
+    EnableSpecialSr15Mapping()
+
+    If flags not in [1, 2]:
+        Return -2
+    // sub_FFEE1844(obj, addr1, size)
+    If (addr1, size) is in MapVirtAddrRange And (addr1+size) Not Multiple Of 0x20000:
+        Return -2
+    If sub_FFEE1888(obj, addr2, size) == 0:
+        Return -2
+    // ...
+  

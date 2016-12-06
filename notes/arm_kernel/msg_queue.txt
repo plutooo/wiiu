@@ -1,0 +1,81 @@
+MessageQueue is a IOSU kernel primitive. It is a cyclic buffer of u32's.
+
+Summary:
+    * Each message is 4 byte.
+    * Send adds a new message at end of the queue.
+    * Jam adds a new message at the start of the queue.
+    * Receive removes the first message from the queue.
+
+
+// Internal table entry structure:
+typedef struct {
+    unk*    unk_ptr;          // @+0    threading related
+    thread* thread_wait_ptr?; // @+4    threading related
+    u32     num_entries;      // @+8
+    int     cur_pos;          // @+0xC
+    u32     max_entries;      // @+0x10
+    u32*    data_ptr;         // @+0x14
+    u32     weird_idx;        // @+0x18 threading related
+    u8      pid;              // @+0x1C
+    u8      flags;            // @+0x1D, bit0: is_registered_to_event
+    // sizeof=0x20
+} msgqueue_table;
+
+
+SendMessage does the following (apart from the weird threading stuff):
+    u32 idx = queue->cur_pos;
+    if(idx < 0)
+        idx += queue->max_entries;
+
+    kernel::arm::SetAccessControl(0);
+    u32* ptr = &queue->data_ptr[idx];
+    *ptr = msg;
+    kernel::sc::FlushDcache(ptr, 4);
+    kernel::arm::SetAccessControl(cur_thread->pid);
+
+    queue->num_entries++;
+
+JamMessage does the following:
+    queue->cur_pos--;
+    if(queue->cur_pos < 0)
+        queue->cur_pos += queue->max_entries;
+
+    kernel::arm::SetAccessControl(0);
+    u32* ptr = &queue->data_ptr[queue->cur_pos];
+    *ptr = msg;
+    kernel::sc::FlushDcache(ptr, 4);
+    kernel::arm::SetAccessControl(cur_thread->pid);
+
+    queue->num_entries++;
+
+ReceiveMessage does the following:
+    if(out != NULL)
+        *out = queue->data_ptr[queue->cur_pos];
+
+    queue->num_entries--;
+    queue->cur_pos++;
+
+    if(queue->cur_pos >= queue->max_entries)
+        queue->cur_pos -= queue->max_entries;
+
+
+== Message Types ==
+The message types over IPC that have been seen are:
+
+   * IOS_OPEN - 1
+   * IOS_CLOSE - 2
+   * IOS_READ - 3
+   * IOS_WRITE - 4
+   * IOS_SEEK - 5
+   * IOS_IOCTL - 6
+   * IOS_IOCTLV - 7
+   * IOS_REPLY - 8
+   * IOS_IPC_MSG0 - 9
+   * IOS_IPC_MSG1 - 10
+   * IOS_IPC_MSG2 - 11
+   * IOS_SUSPEND - 12
+   * IOS_RESUME  - 13
+   * IOS_SVCMSG - 14
+
+   * IOS_FASTRELAUNCH?? - 14?
+   * IOS_PPCPROTVIOL - 0x100, 0x101: Used to verify DMA addresses for PowerPC?

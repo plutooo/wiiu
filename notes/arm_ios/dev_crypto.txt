@@ -1,0 +1,146 @@
+== /dev/crypto ==
+Le crypto.
+
+The used curve for elliptic curve cryptography (ECC) is sect233r1.
+
+== Ioctls ==
++----------+--------------------------------------+----+-----------+-----------+------
+| Ioctl #  | Name                                 | v? | In size   | Out size  | Input Args
++----------+--------------------------------------+----+-----------+-----------+------
+|        1 | IOSC_CreateObject                    | No |      0x10 |         4 | int unk1, int type(0=aes-cbc?,7=hmac?), int ignored, int ignored2
+|        2 | IOSC_DeleteObject                    | No |         4 |         0 | int handle
+|        3 | IOSC_ImportSecretKey                 | Ye |        4v |        0v | ?
+|        4 | hmac                                 | Ye |         ? |         ? |
+|        5 | IOSC_ImportPubkey                    | Ye |        5v |        3v |
+|        6 | IOSC_ExportRootKey                   | Ye |        1v |        2v |
+|        7 | IOSC_ComputeSharedKey                | No |         ? |         ? |
+|        8 | sets 4 bytes from input              | Ye |         ? |         ? |
+|        9 | IOSC_GetDeviceId                     | Ye |        1v |        1v |
+|        a | get keysize from keyid               | No |         ? |         ? |
+|        b | get keysize again?                   | No |         ? |         ? |
+|        c | IOSC_GenerateHash                    | Ye |        3v |        1v |
+|        d | IOSC_Encrypt                         | Ye |        3v |        1v |
+|        e | IOSC_Decrypt                         | Ye |        3v |        1v |
+|        f | IOSC_VerifyPubkeySign                | Ye |        3v |        0v |
+|       10 | hmac                                 | Ye |         ? |         ? |
+|       11 | IOSC_ImportAndVerifyCert?            | Ye |        2v |        0v |
+|       12 | IOSC_GetDeviceCert                   | No |         0 |     0x180 |
+|       13 | IOSC_SetTitleKeyOwnership            | Ye |        2v |        0v |
+|       14 | get info from keyid                  | Ye |         ? |         ? |
+|       16 | IOSC_GenerateSecretKey               | No |         4 |         0 |
+|       17 | IOSC_SignCert                        | Ye |        2v |        1v |
+|       18 | IOSC_GenerateCert                    | Ye |        2v |        1v |
+|       1A | hw crypto                            | Ye |         ? |         ? |
+|       1B | hw crypto                            | Ye |         ? |         ? |
+|       1D | IOSC_ReadHashedBlock                 | Ye |        5v |        1v | sizes need to be {0x24, 0x4, *, 0x400, 0xFC00}, {0xFC00}
+|       15 | GenRand                              | No |         ? |         ? |
+|       1C | <scReadOtp with r0=0x20, r2=4>       | No |         ? |         ? |
+|       1E | IOSC_GetSeepromCert                  | No |         ? |         ? |
+|       1F | IOSC_UsbhddKeyGenerator              | No |         ? |         ? | Only PID1 (MCP) allowed to use this.
+|       16 |                                      | No |         ? |         ? |
+|       20 | EncryptSw                            | No |         ? |         ? |
+|       21 | DecryptSw                            | No |         ? |         ? |
+|       22 | SetCryptoThreadPriority?             | No |         4 |         0 | Used by MCP.
+|       23 |                                      | No |         ? |         ? | Used by MCP.
++----------+--------------------------------------+----+-----------+-----------+------
+
+== Key table ==
++-------+------------+------+-------------------
+| KeyID | Otp Offset | Size | Note
++-------+------------+------+-------------------
+| 0     | 0x88       | 30   | Some ECC key?
+| 1     | 0x87       | 4?   |
+| 2     | 0x5C       | 16   | WiiU NAND-key
+| 3     | 0x78       | 20   | WiiU NAND HMAC-key
+| 4     | 5          | 16   | vWii common-key
+| 5     | 0x58       | 16   |
+| 6     | -          | 16   | ???. Hardcoded in binary.
+| 7     | 0x28       | 16   | Used by MCP. Used for something related to /vol/storage_mlc01/sys/import?
+| 8     | -          | ???  |
+| 9     | -          | ???  |
+| 10    | -          | ???  |
+| 11    | 0xD2       | 16   |
+| 12    | -          | ???  |
+| 13    | 0x24       | 16   | ARM Ancast-key. Used by MCP.
+| 14    | -          | 256  | ARM Ancast RSA-modulus, hardcoded in binary. Exponent 0x10001.
+| 15    | -          | 256  | Boot1 Ancast RSA-modulus. Hardcoded in binary. Exponent 0x10001.
+| 16    | 0x38       | 16   | WiiU common-key
+| 17    | 0x60       | 16   |
+| 18    | -          | 16   | This is setup by /dev/crypto ioctl 0x1F. Used in MCP for usbhdd crypto.
+| 19    | 0x16       | 16   | vWii NAND-key
+| 20    | 0x11       | 20   | vWii NAND HMAC-key
+| 21    | 0x34       | 16   |
+| 22    | 0x68       | 16   |
+| 23    | -          | 16   | Used by IOS-NET. Calculated by xor with OTP, see below.
+| 24    | -          | 16   | Used by IOS-NET. Calculated by xor with OTP, see below.
+| 25    | -          | 16   | Used by IOS-ACP. Calculated by xor with OTP, see below.
+| 26    | 0x50       | 16   |
+| 27    | 0x48       | 16   | Used by IOS-NSEC.
+| 28    | 0x90       | 30   | Some ECC key?
+| 29    | 0xD8       | 30   | Some ECC key?
+| 30    | 0x90       | 16   | Appstore .objdata key. Used by IOS-NSEC.
+| 31    | -          | 16   | Calculated by xor with OTP, see below. Used by NIM-BOSS.
+| 32    | -          | 64   | Calculated by xor with OTP, see below.
+| 33    | -          | 64   | Calculated by xor with OTP, see below.
+| 34    | -          | 16   | Calculated by xor with OTP, see below. Amiibo Hmac-key #0. WTF: Key-size is actually set to 0x40?!
+| 35    | -          | 16   | Calculated by xor with OTP, see below. Amiibo Hmac-key #1. WTF: Key-size is actually set to 0x40?!
+| 36    | -          | 16   | Calculated by xor with OTP, see below. Amiibo Random-key
+| 37    | -          | 16   | Calculated by xor with OTP, see below. Amiibo ???
+| 38    | -          | 16   | Calculated by xor with OTP, see below. ???
+| 39    | -          | 16   | Calculated by xor with OTP, see below. Used by NIM-BOSS.
++-------+------------+------+-------------------
+
+== OTP XOR trick ==
+Some keys are hardcoded in the IOS-CRYPTO binary, but are stored xor'd with a
+fixed key from OTP offset 0x54. This means that an OTP dump is required
+to calculate the actual key.
+
+For key-ids 32,33 the xor-key from otp is still 16-byte but is extended to 64
+byte by just repeating itself.
+
+
+== IOSC_UsbhddKeyGenerator ==
+This function encrypts a 16-byte input with AES-ECB using a key loaded from OTP
+offset 0x4C. It then proceeds to set up key-id 18 with the output.
+
+If no input is given, it will read 16 bytes from EEPROM offset 0x58. The first
+4 bytes of this must be identical to OTP offset 0x87, otherwise an error is
+returned.
+
+From MCP, it looks like the input-block can come from:
+     * /vol/system_slc/security/ivs.bin
+     * all zeroes
+     * NULL
+
+
+== AES HW function ==
+enum aes_op {
+     0=??,
+     1=??,
+     2=WAIT_ASYNC
+};
+
+enum aes_hw {
+     AES_HW_NONE=0,
+     AES_HW_AES =1,
+     AES_HW_AESS=2
+};
+
+struct aes_blk {
+       int     aes_ctrl;// @+0,  2=enc, 3=dec
+       u8*     iv_buf;  // @+4
+       size_t  iv_len;  // @+8
+       u8*     key_buf; // @+12
+       size_t  key_len; // @+16
+       u8*     in_buf;  // @+20
+       size_t  in_len;  // @+24
+       u8*     out_buf; // @+28
+       size_t  out_len; // @+32
+       int     iv_cfg;  // @+36  1=continue_cbc, 2=reset_iv
+       
+};
+
+int aes::ControlHw(enum aes_hw hw,
+    bool async,
+    enum aes_op op,
+    struct aes_blk* cfg_blk);

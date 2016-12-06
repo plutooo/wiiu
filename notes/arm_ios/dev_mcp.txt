@@ -1,0 +1,73 @@
+typedef struct {
+    u32 ctr1;
+    u32 ctr2;
+    u32 start_addr;
+    u32 unk3;
+    u32 end_addr;
+    // sizeof=0x14
+} per_pid_entry;
+
+
+== Ioctl 0x51 ==
+Must be invoked from kernel pid.
+< TODO.. >
+
+
+== Ioctl 0x5C ==
+Must be invoked from kernel pid.
+
+size_in:   0x12D8
+buf_out:   0
+size_out:  0
+
+typedef struct {
+    int pid;  // @+0x18
+    // sizeof=0x12D8
+} ioctl_5C;
+
+int ioctl_5C_inner(int pid) {
+    per_pid_entry* ent = get_entry(pid);
+
+    if(ent == NULL)
+        return -4;
+
+    if(ent->start_addr == ent->end_addr) {
+        start_addr = 0x28000000;
+        size       = 0xA8000000;
+        ent->ctr2++;
+    }
+    else {
+        start_addr = ent->start_addr;
+        size       = ent->end_addr - ent->start_addr;
+        ent->ctr1++;
+    }
+
+    return syscall_84(2, 0, 0, start_addr, size);
+}
+
+
+== Ioctl 0x210 ==
+Must be invoked from kernel pid.
+
+size_in:   0x12D8
+buf_out:   0
+size_out:  0
+
+typedef struct {
+    int pid;  // @+0x18
+    int addr; // @+0x1C, set to 0x50000000
+    // sizeof=0x12D8
+} ioctl_210;
+
+int ioctl_210_inner(int pid, u32 addr) {
+    per_pid_entry* ent = get_entry(pid);
+
+    if(ent == NULL)
+        return -4;
+
+    ent->start_addr = addr;
+    if(ent->end_addr == addr)
+        return -4;
+
+    return syscall_84(2, 0, 0, addr, addr - ent->end_addr);
+}

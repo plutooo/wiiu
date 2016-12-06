@@ -1,0 +1,121 @@
+coreinit.rpl includes a disassembler that gives us all the sprs.
+
++------+-------+--------+------------------+------------------+---------+---------+
+| Dec  | Hex   | Name   | Read by          | Written by       | Read    | Write   |
++------+-------+--------+------------------+------------------+---------+---------+
+|    1 |     1 | xer    |                  |                  |         |         |
+|    8 |     8 | lr     |                  |                  |         |         |
+|    9 |     9 | ctr    |                  |                  |         |         |
+|   18 |  0x12 | dsisr  |                  |                  |         |         |
+|   19 |  0x13 | dar    |                  |                  |         |         |
+|   22 |  0x16 | dec    |                  |                  |         |         |
+|   25 |  0x19 | sdr1   | kernel           | kernel           |         |         |
+|   26 |  0x1a | srr0   |                  |                  |         |         |
+|   27 |  0x1b | srr1   |                  |                  |         |         |
+|  268 | 0x10c | utbl   |                  |                  |         |         |
+|  269 | 0x10d | utbu   |                  |                  |         |         |
+|  272 | 0x110 | sprg0  |                  |                  |         |         |
+|  273 | 0x111 | sprg1  |                  |                  |         |         |
+|  274 | 0x112 | sprg2  |                  |                  |         |         |
+|  275 | 0x113 | sprg3  |                  |                  |         |         |
+|  282 | 0x11a | ear    |                  |                  |         |         |
+|  284 | 0x11c | tbl    |                  | kernel           |         |         |
+|  285 | 0x11d | tbu    |                  | kernel           |         |         |
+|  287 | 0x11f | pvr    |                  |                  |         |         |
+|  528 | 0x210 | ibat0u | kernel           |                  |         |         |
+|  529 | 0x211 | ibat0l | kernel           |                  |         |         |
+|  530 | 0x212 | ibat1u | kernel           |                  |         |         |
+|  531 | 0x213 | ibat1l | kernel           |                  |         |         |
+|  532 | 0x214 | ibat2u | kernel           |                  |         |         |
+|  533 | 0x215 | ibat2l | kernel           |                  |         |         |
+|  534 | 0x216 | ibat3u | kernel           |                  |         |         |
+|  535 | 0x217 | ibat3l | kernel           |                  |         |         |
+|  536 | 0x218 | dbat0u | kernel           |                  |         |         |
+|  537 | 0x219 | dbat0l | kernel           |                  |         |         |
+|  538 | 0x21a | dbat1u | kernel           |                  |         |         |
+|  539 | 0x21b | dbat1l | kernel           |                  |         |         |
+|  540 | 0x21c | dbat2u | kernel           |                  |         |         |
+|  541 | 0x21d | dbat2l | kernel           |                  |         |         |
+|  542 | 0x21e | dbat3u | kernel           |                  |         |         |
+|  543 | 0x21f | dbat3l | kernel           |                  |         |         |
+|  560 | 0x230 | ibat4u | kernel           | kernel           |         |         |
+|  561 | 0x231 | ibat4l | kernel           | kernel           |         |         |
+|  562 | 0x232 | ibat5u | kernel           | kernel           |         |         |
+|  563 | 0x233 | ibat5l | kernel           | kernel           |         |         |
+|  564 | 0x234 | ibat6u | kernel           | kernel           |         |         |
+|  565 | 0x235 | ibat6l | kernel           | kernel           |         |         |
+|  566 | 0x236 | ibat7u | kernel           | kernel           |         |         |
+|  567 | 0x237 | ibat7l | kernel           | kernel           |         |         |
+|  568 | 0x238 | dbat4u | kernel           | kernel           |         |         |
+|  569 | 0x239 | dbat4l | kernel           | kernel           |         |         |
+|  570 | 0x23a | dbat5u | kernel           | kernel           |         |         |
+|  571 | 0x23b | dbat5l | kernel           | kernel           |         |         |
+|  572 | 0x23c | dbat6u | kernel           | kernel           |         |         |
+|  573 | 0x23d | dbat6l | kernel           | kernel           |         |         |
+|  574 | 0x23e | dbat7u | kernel           | kernel           |         |         |
+|  575 | 0x23f | dbat7l | kernel           | kernel           |         |         |
+|      | 0x380 | ugqr0  |                  |                  |         |         |
+|      | 0x381 | ugqr1  | coreinit         | coreinit         |         |         |
+|      | 0x382 | ugqr2  | coreinit         | coreinit         |         |         |
+|      | 0x383 | ugqr3  | coreinit         | coreinit         |         |         |
+|      | 0x384 | ugqr4  | coreinit         | coreinit         |         |         |
+|      | 0x385 | ugqr5  | coreinit         | coreinit         |         |         |
+|      | 0x386 | ugqr6  | coreinit         |                  |         |         |
+|      | 0x387 | ugqr7  | coreinit         |                  |         |         |
+|      | 0x388 | uhid2  | coreinit         |                  | User    | Super   | Read from user == 0?
+|      | 0x389 | uwpar  | kernel           |                  | User    | Super   | Read from user == 0?
+|      | 0x38a | udmau  |                  | kernel           | Super   | Super   |
+|      | 0x38b | udmal  |                  | kernel           | Super   | Super   |
+|  912 | 0x390 | gqr0   |                  |                  |         |         |
+|  913 | 0x391 | gqr1   | kernel           | kernel           |         |         |
+|  914 | 0x392 | gqr2   | kernel           | kernel           |         |         |
+|  915 | 0x393 | gqr3   | kernel           | kernel           |         |         |
+|  916 | 0x394 | gqr4   | kernel           | kernel           |         |         |
+|  917 | 0x395 | gqr5   | kernel           | kernel           |         |         |
+|  918 | 0x396 | gqr6   | kernel           | kernel           |         |         |
+|  919 | 0x397 | gqr7   | kernel           | kernel           | Super   |         |
+|  920 | 0x398 | hid2   | kernel, coreinit | kernel, coreinit | Super   |         |
+|  921 | 0x399 | wpar   | kernel, coreinit | kernel, coreinit | Super   |         |
+|  922 | 0x39a | dmau   | coreinit         | coreinit         | Super   |         |
+|  923 | 0x39b | dmal   | coreinit         | coreinit         | Super   |         |
+|  936 | 0x3a8 | ummcr0 | coreinit         |                  |         |         |
+|  937 | 0x3a9 | upmc1  | coreinit         |                  |         |         |
+|  938 | 0x3aa | upmc2  | coreinit         |                  |         |         |
+|  939 | 0x3ab | usia   | coreinit         |                  |         |         |
+|  940 | 0x3ac | ummcr1 | coreinit         |                  |         |         |
+|  941 | 0x3ad | upmc3  | coreinit         |                  |         |         |
+|  942 | 0x3ae | upmc4  | coreinit         |                  |         |         |
+|  944 | 0x3b0 | hid5   | kernel           |                  |         |         |
+|  946 | 0x3b2 | pcsr   |                  |                  |         |         |
+|  947 | 0x3b3 | scr    | kernel           | kernel           |         |         |
+|  948 | 0x3b4 | car    | kernel           | kernel           |         |         |
+|  949 | 0x3b5 | bcr    |                  | kernel           |         |         |
+|  950 | 0x3b6 | wpsar  | kernel           | kernel           | Super   |         |
+|  952 | 0x3b8 | mmcr0  | kernel, coreinit | kernel, coreinit |         |         |
+|  953 | 0x3b9 | pmc1   | kernel, coreinit | kernel           |         |         |
+|  954 | 0x3ba | pmc2   | kernel, coreinit | kernel           |         |         |
+|  955 | 0x3bb | sia    | coreinit         | kernel, coreinit |         |         |
+|  956 | 0x3bc | mmcr1  | coreinit         | kernel, coreinit |         |         |
+|  957 | 0x3bd | pmc3   | kernel, coreinit | kernel, coreinit |         |         |
+|  958 | 0x3be | pmc4   | kernel, coreinit | kernel           |         |         |
+|  976 | 0x3d0 | dcate  | kernel           | kernel           | Super   |         | Set to same val as dcatr by kernel.
+|  977 | 0x3d1 | dcatr  | kernel           | kernel           | Super   |         | Set to same val as dcate by kernel.
+|  984 | 0x3d8 | dmatl0 | kernel           |                  |         |         | Set to 0x10000000 by kernel.
+|  985 | 0x3d9 | dmatu0 | kernel           |                  |         |         | Set to 0xC0000000 or <dynamic-val> by kernel.
+|  985 | 0x3da | dmatr0 | kernel           |                  |         |         | Set to 0x20000000 or <dynamic-val> by kernel.
+|  985 | 0x3db | dmatl1 | kernel           |                  |         |         | Set to 0xF4000000 by kernel.
+|  985 | 0x3dc | dmatu1 | kernel           |                  |         |         | Set to 0xF6000000 by kernel.
+|  985 | 0x3dd | dmatr1 | kernel           |                  |         |         | Set to 0x00000000 by kernel.
+| 1007 | 0x3ef | pir    | kernel, coreinit |                  |         |         |
+| 1008 | 0x3f0 | hid0   | kernel           | kernel, coreinit |         |         |
+| 1009 | 0x3f1 | hid1   | kernel, coreinit |                  |         |         |
+| 1010 | 0x3f2 | iabr   | kernel           |                  |         |         |
+| 1011 | 0x3f3 | hid4   | coreinit         | kernel, coreinit |         |         |
+| 1012 | 0x3f4 | tdcl   |                  |                  |         |         |
+| 1013 | 0x3f5 | dabr   | kernel           |                  |         |         |
+| 1017 | 0x3f9 | l2cr   | kernel           | kernel, coreinit |         |         |
+| 1018 | 0x3fa | tdch   |                  |                  |         |         |
+| 1019 | 0x3fb | ictc   |                  |                  |         |         |
+| 1020 | 0x3fc | thrm1  |                  |                  |         |         |
+| 1021 | 0x3fd | thrm2  |                  |                  |         |         |
+| 1022 | 0x3fe | thrm3  | kernel           |                  | Super   |         |

@@ -1,0 +1,41 @@
+== /dev/bsp ==
+Seems to be an interface to read/parse EEPROM config?
+
+== Ioctls ==
++----------+------------------------------------+----+-----------+-----------+------
+| Ioctl #  | Name                               | v? | In size   | Out size  | Input Args
++----------+------------------------------------+----+-----------+-----------+------
+|        1 | GetEntityVersion                   | No |      0x48 |         4 | struct { u32 unk[0x11]; u32 must_be_4; }
+|        2 | GetHardwareVersion                 | No |      0x48 |         4 | struct { u32 ignored[0x11]; u32 must_be_4; }
+|        3 | ?                                  | No |         ? |         ? | struct { u32 ignored[0x11]; u32 must_be_4; }
+|        4 | Query                              | No |      0x48 |       var | struct { u8  name0[32]; u32 max_version;  u8 name1[32]; u32 len_out; }
+|        5 | Read                               | No |      0x48 |       var | struct { u8  name0[32]; u32 max_version;  u8 name1[32]; u32 len_out; }
+|        6 | Write                              | No |  0x48+var |         0 | struct { u8  name0[32]; u32 max_version;  u8 name1[32]; u32 len_out; }
+|        7 | Initialize                         | No |  0x48+var |         0 | struct { u32 unk[0x11]; u32 bytes_to_write; char buf[]/*var size*/; }
+|        8 | Shutdown                           | No |      0x48 |         0 | struct { u8  name0[32]; u32 max_version;  u8 name1[32]; u32 len_out; }
+|        9 | GetConsoleTypeRaw                  | No |      0x48 |         4 | struct { u32 ignored[0x11]; u32 must_be_4; }
++----------+------------------------------------+----+-----------+-----------+------
+
+BSP has a bunch of "subsystems" with "properties" that you can do read/query/
+/write/initialize/shutdown operations on.
+
+Each property is described by a struct like this:
+
+typedef struct {
+    const char* name;     // @+0
+    u32 flags;            // @+4 bit0-1: 1=query-data is u32, 2=query-data is ptr
+    u32 misc;             // @+8
+    u32 query_data;       // @+0xC
+    u32 size;             // @+0x10, this field must match up with len_out for query/read/write cmds.
+    int (*read)(u32 x, bsp_property* p, u32* out); // @+0x14
+    int (*query)();                      // @+0x18
+    int (*write)(u32 x, bsp_property* p, u32* in); // @+0x1C
+    int (*initialize)(); // @+0x20
+    int (*shutdown)();   // @+0x24
+    u32  unk;
+} bsp_property; // sizeof=0x2C
+
+
+== EEPROM Interface ==
+"EE" is short for EEPROM.
+"control" is the control register. 0x4 = EnableWriteAccess

@@ -1,0 +1,380 @@
+AHB is the memory bus.
+AHM is the memory controller?
+
+
+AHM_RB_CLIENTS:
+  IOS_RB_IOD = 0x0
+  IOS_RB_IOI = 0x1
+  IOS_RB_AIM = 0x2
+  IOS_RB_FLA = 0x3
+  IOS_RB_AES = 0x4
+  IOS_RB_SHA = 0x5
+  IOS_RB_EHCI = 0x6
+  IOS_RB_OHCI0 = 0x7
+  IOS_RB_OHCI1 = 0x8
+  IOS_RB_SD0 = 0x9
+  IOS_RB_SD1 = 0xA
+  IOS_RB_SD2 = 0xB
+  IOS_RB_SD3 = 0xC
+  IOS_RB_EHC1 = 0xD
+  IOS_RB_OHCI10 = 0xE
+  IOS_RB_EHC2 = 0xF
+  IOS_RB_OHCI20 = 0x10
+  IOS_RB_SATA = 0x11
+  IOS_RB_AESS = 0x12
+  IOS_RB_SHAS = 0x13
+
+RDBI_MASK: // This is the bitmask written to AHB_RD_INVALIDATE.
+  0x8000     - IOS_RB_IOD
+  0x4000     - IOS_RB_IOI
+  1          - IOS_RB_AIM
+  2          - IOS_RB_FLA
+  4          - IOS_RB_AES
+  8          - IOS_RB_SHA
+  0x10       - IOS_RB_ECHI
+  0x20       - IOS_RB_OECHI0
+  0x40       - IOS_RB_OECHI1
+  0x80       - IOS_RB_SD0
+  0x100      - IOS_RB_SD1
+  0x10000    - IOS_RB_SD2
+  0x20000    - IOS_RB_SD3
+  0x40000    - IOS_RB_EHC1
+  0x80000    - IOS_RB_OHCI10
+  0x100000   - IOS_RB_EHC2
+  0x200000   - IOS_RB_OHCI20
+  0x400000   - IOS_RB_SATA
+  0x800000   - IOS_RB_AESS
+  0x1000000  - IOS_RB_SHAS
+
+AHM_FLUSH_MASK:
+  1    - IOS_WB_IOD
+  2    - IOS_WB_AES, IOS_WB_SHA, IOS_WB_AESS, IOS_WB_SHAS, IOS_WB_DMAA
+  4    - IOS_WB_AIM, IOS_WB_EHCI, IOS_WB_EHC1, IOS_WB_EHC2, IOS_WB_SATA, IOS_WB_DMAB
+  8    - IOS_WB_FLA, IOS_WB_OHCI0, IOS_WB_OHCI1, IOS_WB_SD0, IOS_WB_SD1, IOS_WB_SD2, IOS_WB_SD3, IOS_WB_OHCI10, IOS_WB_DMAC
+
+MEM_WB_CLIENTS:
+  IOS_WB_IOD = 0x0
+  IOS_WB_AIM = 0x1
+  IOS_WB_FLA = 0x2
+  IOS_WB_AES = 0x3
+  IOS_WB_SHA = 0x4
+  IOS_WB_EHCI = 0x5
+  IOS_WB_OHCI0 = 0x6
+  IOS_WB_OHCI1 = 0x7
+  IOS_WB_SD0 = 0x8
+  IOS_WB_SD1 = 0x9
+  IOS_WB_SD2 = 0xA
+  IOS_WB_SD3 = 0xB
+  IOS_WB_EHC1 = 0xC
+  IOS_WB_OHCI10 = 0xD
+  IOS_WB_EHC2 = 0xE
+  IOS_WB_OHCI20 = 0xF
+  IOS_WB_SATA = 0x10
+  IOS_WB_AESS = 0x11
+  IOS_WB_SHAS = 0x12
+  IOS_WB_DMAA = 0x13
+  IOS_WB_DMAB = 0x14
+  IOS_WB_DMAC = 0x15
+  IOS_WB_ALL = 0x16
+
+REGION:
+  MEM0 = 1
+  MEM1 = 2
+  MEM2 = 3
+
+
++----------+---------+-------------------------+------------------------
+| Physaddr | Width   | Name                    | Description
++----------+---------+-------------------------+------------------------
+| 0D8B0800 |       4 | REGION_CFG_MEM0         | bit1: Enable, bit2-5: Region size, bit8-17: Address bits
+| 0D8B0804 |       4 | REGION_CFG_MEM1         | bit1: Enable, bit2-5: Region size, bit8-13: Address bits
+| 0D8B0808 |       4 | REGION_CFG_MEM2         | bit1: Enable, bit2-5: Region size, bit8-15: Address bits
+| 0D8B080C |       4 | AHB_RD_INVALIDATE       |
+| 0D8B0900 |  4*0x20 | REGION_PAGETABLE_MEM0   |
+| 0D8B0A00 |  4*0x80 | REGION_PAGETABLE_MEM1   |
+| 0D8B0C00 | 4*0x100 | REGION_PAGETABLE_MEM2   |
+| 0D8B4026 |       2 | AHB_FLUSH_MASK          | 2, 0x40 is written with SetCompatMemoryController
+| 0D8B42C4 |       2 | AHB_SEQMEM0_READ_VAL    | < Write here to trigger a write.. >
+| 0D8B42C6 |       2 | AHB_SEQMEM0_READ_ID     | < Write here to trigger a read.. >
+| 0D8B42CC |       2 | AHB_SEQMEM1_READ_VAL    | < Write here to trigger a write.. >
+| 0D8B42CE |       2 | AHB_SEQMEM1_READ_ID     | < Write here to trigger a read.. >
+| 0D8B42D4 |       2 |                         | bit0-1: 3=MEM1CompatMode
++----------+---------+-------------------------+------------------------
+
+
+
+kernel::iommu::Init(int region, int mask):
+    if region == 4: # All regions
+        start = 1
+        stop  = 3
+    else:
+        start = region
+        end   = region
+
+    if mask == 0:
+        return 0
+
+    mask2 = mask
+    rc = 0
+
+    for i=0; i<32; i++:
+        if mask2 & (1<<i):
+            for mem=start; mem<=end; mem++:
+                kernel::memprot::GetPhysicalRegion(mem, &addr_start, &addr_end)
+                addr_end_align = (addr_end+0x1FFFF) & ~0xFFFF0000
+
+                unk1 = 2
+                unk2 = 3
+                rc = kernel::iommu::InitRegion(mem, mask == 0xFF ? 0xFF : (1<<i), 2, &unk1, &unk2) # Reset descriptor?
+
+                if rc != 0:
+                    return rc
+
+                rc = kernel::memcfg::5(mem, 1<<i, 2, &unk_struct, 3) # Fill descriptor?
+                if rc != 0:
+                    if not (rc == 0xFFEDFFFB and mask == 0xFF):
+                        return rc
+
+        mask2 &= ~(1<<i)
+
+    return rc
+
+int kernel::iommu::InitRegion(int region, int mask, int unk0, int* unk1, int* unk2):
+    switch mask:
+        case 0x10:
+          v6 = 2
+          goto region_check
+        case 0x20:
+          v6 = 16
+          goto region_check
+        case 2:
+          v6 = 8;
+          goto region_check
+        case 4:
+          v6 = 32;
+          goto region_check
+        case 8:
+          v6 = 4;
+          goto region_check
+        case 0xff:
+        case 0x80:
+        case 0x40:
+        case 1:
+          goto skip_all_region_check
+        default:
+          return 0xFFEDFFFD
+region_check:
+        if region == 2:
+            v7 = 0x0D8B4402
+skip_all_region_check:
+
+
+kernel::memprot::GetRegion(int region, u32* pagesize_out, u32* addr_out, u32* size_out):
+    rc = kernel::memcfg::GetRegionConfig(region, &pagesize_out, addr_out, 0)
+    if rc != 0:
+        return rc
+
+    switch(region):
+        case MEM0:
+            num_pages = 0x20
+        case MEM1:
+            num_pages = 0x80
+        case MEM2:
+            num_pages = 0x100
+        default:
+            return 0xFFEDFFFE
+
+    *size_out = *pagesize_out * num_pages
+    return 0
+
+kernel::memprot::GetRegionConfig(int region, u32* pagesize_out, u32* addr_out, u32* enabled_out):
+    if region == MEM0:
+        reg_cfg   = *(u32*)0x0D8B0800
+
+        if addr_out != NULL:
+            *addr_out = (cfg & 0x3FF00) << 10
+        if enabled_out != NULL:
+            *enabled_out = !!(cfg & 2)
+        if pagesize_out != NULL:
+            switch (cfg & 0x1C) >> 2:
+                case 0:
+                    *pagesize_out = 0x2000
+                case 1:
+                    *pagesize_out = 0x4000
+                case 2:
+                    *pagesize_out = 0x8000
+                case 3:
+                    *pagesize_out = 0x10000
+                case 4:
+                    *pagesize_out = 0x20000
+                default:
+                    return 0xFFEDFFF1
+        return 0
+
+    elif region == MEM1:
+        reg_cfg   = *(u32*)0x0D8B0804
+
+        if addr_out != NULL:
+            *addr_out = (cfg & 0x3F00) << 12
+        if enabled_out != NULL:
+            *enabled_out = !!(cfg & 2)
+        if pagesize_out != NULL:
+            switch (cfg & 0x1C) >> 2:
+                case 0:
+                    *pagesize_out = 0x2000
+                case 1:
+                    *pagesize_out = 0x4000
+                case 2:
+                    *pagesize_out = 0x8000
+                case 3:
+                    *pagesize_out = 0x10000
+                case 4:
+                    *pagesize_out = 0x20000
+                case 5:
+                    *pagesize_out = 0x40000
+                default:
+                    return 0xFFEDFFF1
+        return 0
+
+    elif region == MEM2:
+        reg_cfg   = *(u32*)0x0D8B0808
+
+        if addr_out != NULL:
+            *addr_out = (cfg & 0xFF00) << 16
+        if enabled_out != NULL:
+            *enabled_out = !!(cfg & 2)
+        if pagesize_out != NULL:
+            switch (cfg & 0x1C) >> 2:
+                case 0:
+                    *pagesize_out = 0x10000
+                case 1:
+                    *pagesize_out = 0x20000
+                case 2:
+                    *pagesize_out = 0x40000
+                case 3:
+                    *pagesize_out = 0x80000
+                case 4:
+                    *pagesize_out = 0x100000
+                case 5:
+                    *pagesize_out = 0x200000
+                case 6:
+                    *pagesize_out = 0x400000
+                case 7:
+                    *pagesize_out = 0x800000
+                default:
+                    return 0xFFEDFFF1
+        return 0
+
+    return 0xFFEDFFF1
+
+kernel::memcfg::SetupRegion(int region, u32 pagesize, u32 addr, int enable):
+    rc = kernel::memprot::GetPhysicalRegion(region, &addr_start, &addr_end);
+    if rc != 0:
+        return rc
+
+     if addr != -1 && addr < addr_start:
+         return 0xFFEDFFED
+
+     if region == MEM0:
+         u32 cfg = *(u32*)0x0D8B0800
+         cfg &= 0xFFFFFFDC
+
+         if enable:
+             cfg |= 2
+
+         switch pagesize:
+             case 0:
+                 size = 0
+             case 0x2000:
+                 cfg &= 0xFFFFFFE2
+                 cfg |= 0 << 2
+                 size = 0x40000
+             case 0x4000:
+                 cfg &= 0xFFFFFFE2
+                 cfg |= 1 << 2
+                 size = 0x80000
+             case 0x8000:
+                 cfg &= 0xFFFFFFE2
+                 cfg |= 2 << 2
+                 size = 0x100000
+             case 0x10000:
+                 cfg &= 0xFFFFFFE2
+                 cfg |= 3 << 2
+                 size = 0x200000
+             case 0x20000:
+                 cfg &= 0xFFFFFFE2
+                 cfg |= 4 << 2
+                 size = 0x400000
+
+         if addr != -1:
+             if addr & 0xF003FFFF: return 0xFFEDFFEE
+             if addr + size < addr_end: return 0xFFEDFFED
+             cfg = (cfg & 0xFFFC00FF) | ((addr & 0xFFC0000) >> 10)
+
+         *(u32*)0x0D8B0800 = cfg
+         return 0
+
+    // ... Similar for MEM1/MEM2
+
+
+kernel::memcfg::GetPageEntryForAddr(int region, u32 addr, u32* offset_out, u32* pageentry_out):
+    *pageentry_out = -1
+    *offset_out     = 0
+
+    rc = kernel::memprot::GetPhysicalRegion(region, &addr_start, &addr_end);
+    if rc != 0:
+        return rc
+
+     if addr != -1 && addr < addr_start:
+         return 0xFFEDFFED
+
+    rc = kernel::memcfg::GetRegionConfig(region, &pagesize_out, &addr_out, 0)
+    if rc != 0:
+        return rc
+
+    u32 page_table
+
+    if region == MEM0:
+        page_table   = 0xD8B0900
+        page_entries = 0x20
+
+        switch pagesize:
+            case 0x2000:
+                table_off  = (addr & 0x3E000) >> 13
+            case 0x4000:
+                table_off  = (addr & 0x7C000) >> 14
+            case 0x8000:
+                table_off  = (addr & 0xF8000) >> 15
+            case 0x10000:
+                table_off  = (addr & 0x1F0000) >> 16
+            case 0x8000:
+                table_off  = (addr & 0x3E0000) >> 17
+            default:
+                return 0xFFEDFFF1
+    // ... Similar for MEM1/MEM2
+
+    if addr < addr_out || addr_in > addr_out + pagesize*page_entries:
+        return 0xFFEDFFF0
+
+    *pageentry_out = page_table + 4*table_off;
+    *offset_out    = table_off;
+    return 0
+
+kernel::memcfg::SetGetMemoryProtectionRanges(int region, u8 device?, u32 operation/*1=get, 2=set*/,
+        u32 ranges[4], u8 ranges/*bit0: range0, bit1: range1*/):
+
+    if region == MEM1:
+        switch device?:
+            case 1:
+                regs = (0x209, 0x20A, 0x23D, 0x23E)
+            case 2:
+                regs = (0x235, 0x236, 0x25F, 0x260)
+            case 4:
+                regs = (0x20F, 0x210, 0x243, 0x244)
+            case 8:
+                regs = (0x215, 0x216, 0x23A, 0x23B)
+            case 0x10:
+                regs = (0x21D, 0x21E, 0x24D, 0x24E)
+            case 0x20:
+    // .. Similar for rest of devices/regions.
+

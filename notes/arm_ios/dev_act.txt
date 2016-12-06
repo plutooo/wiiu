@@ -1,0 +1,8 @@
+== /dev/act ==
+Port of the 3DS "act" service.
+
+== Ioctls ==
++----------+------------------------------------+----+-----------+-----------+------
+| Ioctl #  | Name                               | v? | In size   | Out size  | Input Args
++----------+------------------------------------+----+-----------+-----------+------
+|        0 | Execute3DSServiceCommand           | Ye |         ? |         ? | < see 3ds_services.txt >

@@ -1,0 +1,51 @@
+== IOS requests ==
+typedef struct {
+    u32 cmd;      // 1=Open, 2=Close, 3=Read, 4=Write, 5=Seek, 6=Ioctl, 7=Ioctlv
+    u32 err;      // @+4 Set to error-code by ARM9.
+    u32 fd;       // @+8
+    u32 unk;      // @+0xC
+    u32 node_id;  // @+0x10
+    u32 pid;      // @+0x14, pid of the requester. Must be < 16 for PowerPC.
+    u64 title_id; // @+0x18
+    u32 unk;      // @+0x20
+    u32 args[5];  // @+0x24, meaning depends on cmd
+} ipc_request;
+
+== Open ==
+struct {
+    u32 fname;
+    u32 namelen;
+} open_args;
+
+== Close ==
+struct {
+} close_args;
+
+== Read/Write ==
+struct {
+    u32 buf;
+    u32 size;
+} readwrite_args;
+
+== Seek ==
+struct {
+    u32 where;
+    u32 whence;
+} seek_args;
+
+== Ioctl ==
+struct {
+    u32 cmd;
+    u32 buf_in;
+    u32 size_in;
+    u32 buf_out;
+    u32 size_out;
+} ioctl_args;
+
+== Ioctlv ==
+struct {
+    u32 cmd;
+    u32 num_in;
+    u32 num_out;
+    u32 vec;
+} ioctlv_args;

@@ -1,0 +1,58 @@
+// This is a reversing of the kernel functions used to copy data from/to
+// userspace.
+// plutoo
+
+#define COPY_DIRECTION_IN  1
+#define COPY_DIRECTION_OUT 0
+
+
+int copy_in(void* user_ptr, size_t size, void* kernel_ptr) {
+    return copy_in_out(user_ptr, size, kernel_ptr, COPY_DIRECTION_IN);
+}
+
+int copy_out(void* user_ptr, size_t size, void* kernel_ptr) {
+    return copy_in_out(user_ptr, size, kernel_ptr, COPY_DIRECTION_OUT);
+}
+
+int copy_in_out(void* user_ptr, size_t size, void* kernel_ptr, int direction) {
+    CoreMemObj* m = GetMemObj()[__builtin_cpuid()+1];
+    int valid = CoreMemObj::ValidateAddrRange(m, user_ptr, size);
+
+    if(valid) {
+        if(direction == COPY_DIRECTION_IN)
+            memcpy(user_ptr, kernel_ptr, size);
+        else
+            memcpy(kernel_ptr, user_ptr, size);
+        return 1;
+    }
+
+    KernelMemObj* obj = &GetMemObj()->var_0x10;
+    if(obj == 0) { // WTF?
+        return 0;
+    }
+
+    // Is ptr in special section?
+    if(user_ptr < obj->var0_u32)
+        return 0;
+    if(user_ptr >= (obj->var0_u32 + obj->var1_u32))
+        return 0;
+
+    // This will change the 0xF... mapping
+    u32 old_sr15 = SetSr15(GetSpecialSr15());
+    spinlock_lock(&some_mutex);
+
+    if(direction == COPY_DIRECTION_IN) {
+        valid = KernelMemObj::CheckA(obj, user_ptr, size);
+        if(valid)
+            memcpy(kernel_ptr, user_ptr, size);
+    }
+    else {
+        valid = KernelMemObj::CheckB(obj, user_ptr, size);
+        if(valid)
+            memcpy(user_ptr, kernel_ptr, size);
+    }
+
+    spinlock_unlock(&some_mutex);
+    SetSr15(old_sr15);
+    return valid;
+}

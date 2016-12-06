@@ -1,0 +1,34 @@
+Heap id 0xCAFF is an alias for the process cross heap.
+Heap id 0xCAFE is an alias for the process local heap.
+Heap id 1 is the shared-process-heap, a heap used for the cross-process heaps.
+
+typedef struct {
+    void* base_addr;       // @+0
+    u32   owner_pid;       // @+4
+    u32   size;            // @+8
+    u32   freechunk_ptr;   // @+0xC
+    int   ref_cnt;         // @+0x10, 1+num_chunks
+    u32   num_errors;      // @+0x1C
+    u32   flags;           // @+0x20, bit0: is_local_heap, bit1: is_cross_heap
+    u32   usage;           // @+0x24, number of bytes currently allocated.
+    u32   nerr_free;       // @+0x34, number of times Free() has failed.
+    // sizeof=0x40
+} heap_t;
+
+typedef struct {
+    u32   magic; // 0xBABE0000=free, 0xBABE0001=alloc1, 0xBABE0002=alloc2
+    u32   chunk_size; // in bytes, excluding this header.
+    heap_chunk_t*   prev;
+    heap_chunk_t*   next;
+} heap_chunk_t;
+
+
+The CreateHeap function writes the following header to heap base_addr+0:
+    0xBABE0000
+    heap_size - sizeof(heap_chunk_t)
+    0
+    0
+
+    
+
+

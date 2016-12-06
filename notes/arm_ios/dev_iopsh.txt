@@ -1,0 +1,11 @@
+== Device /dev/iopsh ==
+IOP shell. This is used by one coreinit function. That function has no symbol.
+
+PowerPC syscall 0x7B00 "IopShell_InjectCommand" related..
+
+
+== Ioctls ==
++----------+------------------------------------+----+-----------+-----------+------
+| Ioctl #  | Name                               | v? | In size   | Out size  | Input Args
++----------+------------------------------------+----+-----------+-----------+------
+|        4 | ExecuteShellCommand?               | No |       var |         0 | const char* cmd; // Seen: "ack_kill %d "

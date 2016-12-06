@@ -1,0 +1,88 @@
+== Virtual memory map ==
+Each process has access to the following domains:
+   0 and <self_pid>.
+
+With the following additions:
+   Pid 0 (KERNEL): Access to all domains.
+   Pid 1 (MCP)   : Additional access to domain 15.
+   Pid 2 (BSP)   : Additional access to domain 15.
+   Pid 3 (CRYPTO): Additional access to domains 1, 3, 5, and 9.
+   Pid 4 (BSP)   : Additional access to domain 15.
+   Pid 5 (FS)    : Additional access to domain 15.
+   Pid 13 (TEST) : Additional access to domain 15.
+
++-----------+----------+----------+-------+------------+------
+| Mapped by | Virtaddr | Size     | Perm  | Domain/Pid | Description
++-----------+----------+----------+-------+------------+------
+| iosMemMap | 00000000 |     1000 | RW--  |          0 | Catch NULL-derefs in usermode.
+| iosMemMap | 00001000 |  1FFF000 | RWRW  |          0 | Globally accessible MEM1.
+|    ELF    | 04000000 |        ? | <mix> |          3 | CRYPTO process.
+|    ELF    | 05000000 |        ? | <mix> |          1 | MCP process.
+|    ELF    | 05100000 |        ? |  R-X  |          1 | MCP additional code.
+| iosMemMap | 08000000 |   100000 | RWRW  |         15 | Globally accessible MEM0. PPC kernel-mem.
+| iosMemMap | 08100000 |    20000 | RWRW  |          0 | Globally accessible MEM0. PPC kernel-mem.
+| iosMemMap | 08120000 |    A0000 | RW--  |          0 | KERNEL code.
+|    ELF    | 08120000 |        ? | <mix> |          0 | KERNEL code.
+|  Startup  | 08135000 |     1000 | RWR-  |         0? | Only used for a small thread-func stub.
+| ShareInit | 08144000 |     C000 | RWR-  |          0 | Ipc vectors end up here maybe? At 08145000 on 5.5.0.
+|    ELF    | 10000000 |        ? | <mix> |          1 | ???
+|    ELF    | 10100000 |        ? | <mix> |          4 | USB process.
+|    ELF    | 10800000 |        ? | <mix> |          5 | FS process.
+|    ELF    | 11F00000 |        ? | <mix> |          6 | PAD process.
+|    ELF    | 12300000 |        ? | <mix> |          7 | NET process.
+| iosMemMap | 14000000 |  9000000 | RWRW  |          0 | Globally accessible MEM2. PPC normal-mem.
+| iosMemMap | 1D000000 |  2B00000 | RWRW  |          0 | Shared heap heap.
+|    ELF    | 1FE00000 |        ? |  RW-  |          1 | ???
+|    ELF    | 1FE40000 |        ? |  RW-  |          1 | ???
+| iosMemMap | 1FB00000 |   300000 | RWRW  |          0 | ???, mapping removed in newer firms.
+|    ELF    | 20000000 |        ? | <mix> |          5 | ???
+| iosMemMap | 28000000 | A8000000 | RWRW  |          0 | Globally accessible MEM2. PPC normal-mem.
+|    ELF    | D1F00000 |        ? | <mix> |          6 | PAD process, uncached "mirror" of 0x11F00000.
+|    ELF    | E0000000 |        ? | <mix> |          8 | ACP process.
+|    ELF    | E1000000 |        ? | <mix> |          9 | NSEC process.
+|    ELF    | E2000000 |        ? | <mix> |         11 | NIM-BOSS process.
+|    ELF    | E3000000 |        ? | <mix> |         12 | FPD process.
+|    ELF    | E4000000 |        ? | <mix> |         13 | TEST process.
+|    ELF    | E5000000 |        ? | <mix> |         10 | AUXIL process.
+|    ELF    | E6000000 |        ? | <mix> |          2 | BSP process.
+|    ELF    | E7000000 |        ? | <mix> |          2 | ???
+|    ELF    | EFF00000 |     8000 |  RW-  |          1 | SRAM-B? MCP clears this during firm-reboot.
+| iosMemMap | FFFE0000 |    10000 | RW--  |          0 | SRAM-B again? Never used?! ARM-only mirror of 0x0D410000+.
+| iosMemMap | FFFF0000 |    10000 | RW--  |          0 | KERNEL code. ARM-only mirror of 0x0D400000+.
+|    ELF    | FFFF0000 |    10000 |  RWX  |          0 | KERNEL code.
++-----------+----------+----------+-------+------------+------
+
+== IO ==
+There are a few different IO mappings mapped in different processes. Most
+notably, BSP has every IO mapped. It's trivial to get kernel code running if
+you have code-execution in any process w/ DMA hardware.
+
++---------+----------+----------+----------+------+---------------------
+| Process | Virtaddr | Physaddr | Size     | Perm | Description
++---------+----------+----------+----------+------+---------------------
+| KERNEL  | 0D000000 | 0D000000 | 001C0000 |  RW  | Full IO access.
+| KERNEL  | 0D800000 | 0D800000 | 001C0000 |  RW  | Full IO access.
+| BSP     | 0D000000 | 0D000000 | 001C0000 |  RW  | Full IO access.
+| BSP     | 0D800000 | 0D800000 | 001C0000 |  RW  | Full IO access.
+| CRYPTO  | 0D820000 | 0D020000 | 00020000 |  RW  | AES and SHA. Note vaddr != paddr.
+| CRYPTO  | 0D980000 | 0D180000 | 00020000 |  RW  | AES and SHA. Note vaddr != paddr.
+| USB     | 0D040000 | 0D040000 | 00010000 |  RW  |
+| USB     | 0D050000 | 0D050000 | 00010000 |  RW  |
+| USB     | 0D060000 | 0D060000 | 00010000 |  RW  |
+| USB     | 0D120000 | 0D120000 | 00010000 |  RW  |
+| USB     | 0D130000 | 0D130000 | 00010000 |  RW  |
+| FS      | 0D006000 | 0D006000 | 00001000 |  RW  |
+| FS      | 0D010000 | 0D010000 | 00010000 |  RW  |
+| FS      | 0D070000 | 0D070000 | 00010000 |  RW  | SDIO controller 0 (SDCARD)
+| FS      | 0D100000 | 0D100000 | 00010000 |  RW  | SDIO controller 2 (MLC)
+| FS      | 0D110000 | 0D110000 | 00010000 |  RW  | SDIO controller 3
+| FS      | 0D160000 | 0D160000 | 00010000 |  RW  |
+| PAD     | 0D040000 | 0D040000 | 00010000 |  RW  |
+| PAD     | 0D060000 | 0D060000 | 00010000 |  RW  |
+| PAD     | 0D140000 | 0D140000 | 00010000 |  RW  |
+| PAD     | 0D150000 | 0D150000 | 00010000 |  RW  |
+| NET     | 0D080000 | 0D080000 | 00010000 |  RW  |
++---------+----------+----------+----------+------+---------------------
+
+== Weird shared memory ==
+BSP reads and writes from a shared memory area(?): 1FE131C4, 1FE131C0, 1FE131BC.

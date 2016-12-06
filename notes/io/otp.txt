@@ -1,0 +1,114 @@
+== Registers ==
++------------+------+------
+| Address    | Size | Description
++------------+------+------
+| 0D8001EC   |    4 | OTP_CTRL
+| 0D8001F0   |    4 | OTP_OUT
+| 0D800510   |    4 | OTP_PROT
++------------+-------------
+
+
+== Generic ==
+The otp is read 4 bytes at a time. You write:
+    *OTP_CTRL = 0x80000000 | (bank_id & 7) << 8 | (off & 0x1F);
+    out = *OTP_OUT;
+
+It is split up into 8 banks, each one containing 32 words. Thus each bank is
+0x80 bytes in length, making the otp 0x400 bytes in total.
+
+
+== Protection ==
+The Wii U introduced OTP protection. It is a 32-bit bitmask, and has initial
+value 0xFFFFFFFF. By clearing the i:th bit you disable 0x20 bytes starting at
+byte offset 0x20*i.
+
+
+== Unaligned reads ==
+
+Reading OTP_PROT one using 32-bit and 16-bit reads seem to hang the system. One
+byte can be read, however 2 byte reads also causes a freeze.
+
+The following values seem to be outputted when using 8-bit reads on the
+lockout-register:
+
+  +0x510: 0x07
+  +0x511: 0x57
+  +0x512: 0x95
+  +0x513: 0x28
+
+For OTP_OUT, it never freezes, however appears that the same bytes are
+consistently read back regardless of OTP_CTRL offset value:
+
+  +0x1F0: 0x80
+  +0x1F1: 0x00
+  +0x1F2: 0x00
+  +0x1F3: 0x00
+
+Reading 16-bit from OTP_OUT+0 freezes.
+
+
+== Otp Table ==
++------------+------+-------------+--------
+| Otp Offset | Size | Per-console | Name
++------------+------+-------------+--------
+| 0-3        |   16 |          No | ???. This was boot1 hash on old Wii.
+| 5-8        |   16 |          No | vwii::WiiCommonKey
+| 9          |    4 |         Yes | vwii::NgId
+| 0xA-0x11   |   28 |         Yes | vwii::NgPrivateKey
+| 0x11-0x15  |   28 |         Yes | vwii::NandHmacKey
+| 0x16-0x19  |   16 |         Yes | vwii::NandKey
+| 0x1A-0x1D  |   16 |         Yes | vwii::RngKey
+| 0x1E-0x1F  |    8 |         Yes | ???.
+| 0x20       |    4 |          No | wiiu::DebugConfig    (0x90000000). This is also used by IOS-CRYPTO, boot1. Bit31 = boot1_use_encryption_and_signature_for_iosu.
+| 0x21       |    4 |          No | boot0::HardwareConfig (0)
+| 0x22       |    4 |          No | boot0::SeepromConfig  (0)
+| 0x23       |    4 |          No | ???.                  (0x00010000)
+| 0x24-0x27  |   16 |          No | wiiu::ArmAncastKey. Read by boot1.
+| 0x28-0x2B  |   16 |          No | boot0::SeepromKey
+| 0x2C-0x2F  |   16 |          No | ?
+| 0x30-0x33  |   16 |          No | ?
+| 0x34-0x37  |   16 |          No | vwii::CommonKey
+| 0x38-0x3B  |   16 |          No | wiiu::CommonKey
+| 0x3C-0x40  |   16 |          No | ?
+| 0x40-0x43  |   16 |          No | ?
+| 0x44-0x47  |   16 |          No | ?
+| 0x48-0x4B  |   16 |          No | wiiu::SslRsaKey
+| 0x4C-0x4F  |   16 |          No | wiiu::UsbHddScrambleKey. Used by /dev/crypto ioctl 0x1F to compute the usbhdd key.
+| 0x50-0x53  |   16 |          No | ?
+| 0x54-0x57  |   16 |          No | wiiu::XorKeySecret. Used to hide keys hardcoded in firmware binaries.
+| 0x58-0x5B  |   16 |         Yes | wiiu::EepromKey.
+| 0x5C-0x5F  |   16 |         Yes | wiiu::NandKey (SLC)
+| 0x60-0x63  |   16 |         Yes | wiiu::NandKey (MLC)
+| 0x64-0x67  |   16 |         Yes | ?
+| 0x68-0x6B  |   16 |         Yes | ?
+| 0x6C-0x6F  |   16 |         Yes | ?
+| 0x70-0x73  |   16 |         Yes | ?
+| 0x74-0x77  |   16 |         Yes | ?
+| 0x78-0x7C  |   20 |         Yes | wiiu::NandHmacKey
+| 0x7D-0x7F  |   12 |         Yes | ?
+| 0x80-0x83  |   16 |         Yes | ?
+| 0x84-0x86  |   12 |         Yes | ?
+| 0x87       |    4 |         Yes | wiiu::NgId. This snprintf'd by IOS-CRYPTO with 'NG%08x'. When non-zero, IOS-CRYPTO will load the vWii NAND keys from OTP, otherwise it uses fixed keys from .data.
+| 0x88-0x8F  |   30 |         Yes | wiiu::NgKey?
+| 0x90-0x97  |   32 |         Yes | ?
+| 0x98-0x9B  |   16 |         Yes | Used in EEPROM related-code in IOS-CRYPTO? Only first 4 bytes are actually used?!
+| 0x9C-0x9F  |   16 |         Yes | ?
+| 0xA0       |    4 |          No | wiiu::CAIssuerId. Used as 1st formatter in snprintf "Root-CA%08x-MS%08x".
+| 0xA1       |    4 |         Yes | wiiu::MSIssuerId. Used as 2nd formatter in snprintf "Root-CA%08x-MS%08x".
+| 0xA2       |    4 |         Yes | Ng-related? Read by IOS-CRYPTO but not referenced anywhere?
+| 0xA3-0xB2  |   60 |         Yes | Ng-related?
+| 0xB2-0xB3  |    8 |          No | ?
+| 0xB4-0xB7  |   16 |          No | ?
+| 0xB8-0xBF  |   32 |           ? | boot1 locks this one.
+| 0xC0-0xD7  |   96 |           ? | vwii::SeepromCert. Returned by /dev/crypto ioctl 0x1E.
+| 0xE0-0xE7  |   32 |           ? | boot1 locks this one.
+| 0xE8-0xEB  |   16 |           ? | boot0::Boot1AncastKey. (Access to this is disabled in boot0).
+| 0xEC-0xEF  |   16 |           ? | ???.                   (Access to this is disabled in boot0).
+| 0xF0-0xF7  |   32 |          No | Zeroes.
+| 0xF8-0xFB  |   16 |         Yes | ???.
+| 0xFC-0xFD  |    8 |         Yes | wiiu::AsciiTag
+| 0xFE       |    4 |          No | Zeroes.
+| 0xFF       |    4 |          No | wiiu::ConsoleType
++------------+------+-------------+--------
+
+See <arm_ios/dev_crypto.txt> for more info about the keys.

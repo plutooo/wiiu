@@ -1,0 +1,11 @@
+MCP has an internal messagequeue where things like firmlaunches are posted.
+
+Notification types:
+  - 0x102: POWER_OFF
+  - 0x103: LAUNCH_OS/RESTART
+  - 0x104: ?
+  - 0x105: LAUNCH_C2W
+  - 0x106: PANIC_HW_WATCHDOG
+  - 0x107: RESTART_INTO_NORMAL_BG_MODE
+  - 0x108: ?
+  - 0x109: ?

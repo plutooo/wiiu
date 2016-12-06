@@ -1,0 +1,50 @@
+loader.elf is one of the few non-rpx/rpl binaries found on the Wiiu. It contains
+a RPL/RPX parser, relocator/linker, and some other stuff related to shared area.
+
+The first thing the loader entrypoint does is check a flag whether or not it is
+running under "usermode". If it is running under usermode, it means that a user
+application has already been loaded, and has sent a command request. This is
+done using the 0x4F00 user-syscall.
+
+If it's not running under usermode, it does its init things such as setting up
+shared area and preloading RPL's. It also starts an RPX.
+
+== Loader request structure ==
+
+These are the requests that can be made to loader.elf via syscall 0x4F00.
+coreinit puts the request on a stack buffer, and then moves a ptr to that into
+r3 before doing the syscall. The 6th u32 @ buf is called the command id. The
+size of the request buffer is 8*4=32 bytes, plus some random things in a header.
+
+The requests are handled by the function LOADER_Entry. When the entrypoint is
+called, r4 contains the ptr to a struct that looks like this:
+
+   u32 inited_zero_by_coreinit; // This is verified/filled in partially by kernel?
+   u32 process_id;              // kernel?
+   u32 inited_zero_by_coreinit;
+   u32 context_ptr;             // kernel?
+   u32 inited_zero_by_coreinit;
+   u32 old_interrupt_mask;      // coreinit
+   u32 request_buf[8];          // This comes from coreinit.
+
+The commands are as follows:
+
++-----------+---------------------+-------------------
+| Command # | Name                | Description
++-----------+---------------------+-------------------
+|         1 | Prep                | Updates heartbeat via syscall, then loads an RPL?
+|       2,3 | Setup               | "Sets up" a module?
+|         4 | Link                |
+|         5 | Query               |
+|         6 | Tag                 |
+|         7 | GainUserControl     |
+|         8 | Done                |
+|         9 | GetHeapStatistics   |
+|       0xA | Panic1?             |
+|       0xB | Panic2?             |
++-----------+---------------------+-------------------
+
+
+== Loader process memory map ==
+
+0xEFE0B000+ Writeable

@@ -1,0 +1,292 @@
+Syscalls are not invoked using the SVC-instruction. Rather, it uses an undefined
+instruction: 0xE7F0XXF0 where XX is the syscall number.
+
+There are 0x93 syscalls on older firm, and 0x88 syscalls on latest firm.
+
++--------+--------+-------+-------------------------------------+-----------
+| 5.3    | 5.5    | Args  | Name                                | Notes
++--------+--------+-------+-------------------------------------+-----------
+|      0 |      0 |   4+2 | CreateThread                        |
+|      1 |      1 |     2 | JoinThread?                         |
+|      2 |      2 |     2 | DestroyThread?                      |
+|      3 |      3 |     0 | GetCurrentThreadId                  |
+|      4 |      4 |     0 | <Get something..?>                  |
+|      5 |      5 |     0 | GetCurrentProcessId                 |
+|      6 |      6 |     2 | GetProcessName                      |
+|      7 |      7 |     1 | StartThread                         |
+|      8 |      8 |     1 | StopThread?                         |
+|      9 |      9 |     1 | YieldThread                         |
+|      A |      A |     1 | GetThreadPriority                   |
+|      B |      B |     2 | SetThreadPriority                   |
+|      C |      C |     2 | CreateMessageQueue                  |
+|      D |      D |     1 | DestroyMessageQueue                 |
+|      E |      E |     3 | SendMessage                         | .. (int msgqueue_id, u32  msg, bool noblock)
+|      F |      F |     3 | JamMessage                          | .. (int msgqueue_id, u32  msg, bool noblock)
+|     10 |     10 |     3 | ReceiveMessage                      | .. (int msgqueue_id, u32* msg, bool noblock)
+|     11 |     11 |     3 | RegisterEventHandler                | .. (int irq_id, int msgqueue_id, int flags?)
+|     12 |     12 |     1 | UnregisterEventHandler              | .. (int irq_id)
+|     13 |     13 |     4 | CreateTimer                         |
+|     14 |     14 |     3 | RestartTimer                        |
+|     15 |     15 |     1 | StopTimer                           |
+|     16 |     16 |     1 | DestroyTimer                        |
+|     17 |     17 |     0 | <Time related..>                    |
+|     18 |     18 |     0 | TimeNow                             |
+|     19 |     19 |     1 | GetUpTimeStruct                     |
+|     1A |     1A |     1 | GetUpTime64                         |
+|     1B |     1B |     1 | SetRtcCounter                       |
+|     1C |     1C |     1 | GetAbsTimeCalendar                  |
+|     1D |     1D |     1 | GetAbsTime64                        |
+|     1E |     1E |     1 | GetAbsTimeStruct                    |
+|     1F |     1F |     2 | SetProcessDebugFlag                 |
+|     20 |     20 |     0 | CheckOtpBlk20Flag                   | Reads from OTP blkid 0x20.
+|     21 |     21 |     0 | GetJtagStatus                       | Reads from OTP blkid 0xFF.
+|     22 |     22 |     3 | ReadOtp                             | Only CRYPTO.
+|     23 |     23 |     2 | CreateHeap                          | .. (void* base_addr, size_t size)
+|     24 |     24 |     2 | CreateLocalProcessHeap              | .. (void* base_addr, size_t size)
+|     25 |     25 |     1 | CreateCrossProcessHeap              | .. (size_t size)
+|     26 |     26 |     1 | DestroyHeap                         |
+|     27 |     27 |     2 | Alloc                               |
+|     28 |     28 |     3 | AllocAlign                          |
+|     29 |     29 |     2 | Free                                |
+|     2A |     2A |     2 | FreeAndClear                        | Same as Free(), except does a memset to 0x00.
+|     2B |     2B |     3 | Realloc                             | .. (int heap_id, void* ptr, size_t new_size)
+|     2C |     2C |     2 | CreateDevice                        |
+|     2D |     2D |     2 | SetDeviceFeatureId                  | .. (const char* path, int feature_id)
+|     2E |     2E |     2 | SetDeviceMaxIoctlvVecs              | .. (const char* path, int max_vecs)
+|     2F |     2F |     3 | SetFeatureMask                      | Only MCP.. (int pid, int feature_id, u64* mask)
+|     30 |     30 |     0 | ClearFeatureMask                    |
+|     31 |     31 |     3 | GetFeatureMask                      | .. (int pid, int feature_id, u64* out)
+|     32 |     32 |     3 | QueryFeature                        |
+|     33 |     33 |     2 | Open                                |
+|     34 |     34 |     1 | Close                               |
+|     35 |     35 |     3 | Read                                |
+|     36 |     36 |     3 | Write                               |
+|     37 |     37 |     4 | Seek                                |
+|     38 |     38 |   4+2 | Ioctl                               |
+|     39 |     39 |   4+1 | Ioctlv                              |
+|     3A |     3A |     4 | OpenAsync                           |
+|     3B |     3B |     3 | CloseAsync                          |
+|     3C |     3C |   4+1 | ReadAsync                           |
+|     3D |     3D |   4+1 | WriteAsync                          |
+|     3E |     3E |   4+1 | SeekAsync                           |
+|     3F |     3F |   4+4 | IoctlAsync                          |
+|     40 |     40 |   4+3 | IoctlvAsync                         |
+|     41 |     41 |   4+2 | OpenAsAsync                         | Only MCP.
+|     42 |     42 |   4+3 | WriteAsAsync                        | Only MCP.
+|     43 |     43 |     3 | Resume                              | Only MCP and ACP. This sends an IOS_RESUME to an device.
+|     44 |     44 |     3 | Suspend                             | Only MCP and ACP. This sends an IOS_SUSPEND to an device.
+|     45 |     45 |   4+1 | SvcMsg                              | Only MCP. This sends an IOS_SVCMSG to an device.
+|     46 |     46 |   4+1 | ResumeAsync                         | Only MCP and ACP.
+|     47 |     47 |   4+1 | SuspendAsync                        | Only MCP and ACP.
+|     48 |     48 |   4+3 | SvcMsgAsync                         | Only MCP.
+|     49 |     49 |     2 | ResourceReply                       |
+|     4A |     4A |     4 | SetProcessFeatureFlags              | Only MCP.
+|     4B |     4B |     3 | GetProcessFeatureFlags              | Only MCP.
+|     4C |     4C |     1 | <Irq related..?>                    |
+|     4D |     4D |     1 | <Irq related..?>                    |
+|     4E |     4E |     1 | <Irq related..?>                    |
+|     4F |     4F |     1 | <Irq related..?>                    |
+|     50 |     50 |     1 | EnableIrqEvent?                     |
+|     51 |     -- |     0 | Stubbed, returns zero.              | Removed in 5.5.0
+|     52 |     -- |     2 | <IOB related..>                     | Removed in 5.5.0.
+|     53 |     -- |     1 | <IOB related..>                     | Removed in 5.5.0.
+|     54 |     -- |     0 | Stubbed                             | Removed in 5.5.0.
+|     55 |     -- |     0 | Stubbed                             | Removed in 5.5.0.
+|     56 |     -- |     2 | <IOB related..>                     | Removed in 5.5.0.
+|     57 |     -- |     2 | <IOB related..>                     | Removed in 5.5.0.
+|     58 |     -- |     2 | <IOB related..>                     | Removed in 5.5.0.
+|     59 |     -- |     1 | ValidateIobAddress                  | Removed in 5.5.0.
+|     5A |     -- |     1 | <IOB related..>                     | Removed in 5.5.0.
+|     5B |     51 |     2 | InvalidateDCache                    |
+|     5C |     52 |     2 | FlushDCache                         |
+|     5D |     53 |     1 | CallFunctionBaremetal               | Only MCP. Kills PPC, disables MMU, memprot, clears mem, then jumps to function given in some struct* r0.
+|     5E |     54 |     2 | GetKernelVersionA?                  |
+|     5F |     55 |     2 | GetKernelVersionB?                  |
+|     60 |     56 |     1 | ConvertVirtToPhys                   |
+|     61 |     57 |     2 | CreateMutex                         |
+|     62 |     58 |     2 | AcquireMutex                        |
+|     63 |     59 |     1 | ReleaseMutex/SignalSemaphore        |
+|     64 |     5A |     1 | DestroyMutex                        |
+|     65 |     5B |     0 | <Ipc related..?>                    |
+|     66 |     5C |     0 | ContinueStartup                     | Only BSP.
+|     67 |     5D |     3 | ??                                  |
+|     68 |     5E |     2 | ValidatePowerPCRange                |
+|     69 |     5F |     0 | FillMem1WithInfiniteLoopPpcInsns    | Writes "b 0" instructions to first 2 pages of MEM1. Only MCP.
+|     6A |     60 |     0 | GetCpuUtilization                   |
+|     6B |     61 |     2 | GetThreadStackUsage                 | Only debug-mode. This one counts the number of 0xF5A5A5A5 words on thread stack.
+|     6C |     62 |     2 | StartProfile                        |
+|     6D |     63 |     1 | <Profiling related..>               | Only debug-mode.
+|     6E |     64 |     2 | ??                                  |
+|     6F |     65 |     2 | GetThreadStats                      | Only debug-mode.
+|     70 |     -- |     2 | <IOB related..>                     | Removed in 5.5.0.
+|     71 |     -- |     2 | <IOB related..>                     | Removed in 5.5.0.
+|     72 |     66 |     1 | GetMsgqueueStats                    |
+|     73 |     67 |     2 | GetResourceAggregateUtilizationStats|
+|     74 |     68 |     3 | GetProcessResourceAllocationStats   |
+|     75 |     69 |     1 | GetTimerStats?                      |
+|     76 |     6A |     1 | GetMutexStats?                      |
+|     77 |     6B |     2 | GetHeapStats                        |
+|     78 |     6C |     1 |                                     | Hw pokes.
+|     79 |     6D |     1 | WriteSinglePpcInsnToMem1            | Writes u32 to MEM1 + 0xC. Only MCP.
+|     7A |     6E |     0 | UpdateDebuggerReg                   |
+|     7B |     6F |     0 | ZeroDebuggerReg                     |
+|     7C |     70 |     1 | WriteDebuggerReg                    | Only MCP.
+|     7D |     71 |     2 | IsDebuggerAttached                  |
+|     7E |     72 |     1 | ???                                 | Interesting!!!
+|     7F |     73 |     2 | Panic                               |
+|     80 |     74 |     0 | ??                                  | Only MCP.
+|     81 |     75 |     1 | SetPanicConfigA                     | Only MCP.
+|     82 |     76 |     1 | SetPanicConfigB                     | Only MCP. 
+|     83 |     77 |     2 | ??                                  | Only MCP. This one is used to map kernel memory into FG?
+|     84 |     78 |   4+1 | SetPpcMEM2ProtectionRanges          | Only MCP.
+|     85 |     79 |     1 | SetSystemMode                       | Only MCP.
+|     86 |     7A |     0 | GetSystemMode                       | 10=Test, 20=Dev, Else=Prod
+|     87 |     7B |     3 | GetOpenHandles                      |
+|     88 |     7C |     1 | SetMainTitleSDKVersion              | Only MCP.
+|     89 |     7D |     0 | GetMainTitleSDKVersion              |
+|     8A |     7E |     2 | WeirdValidateRange                  |
+|     8B |     7F |     4 | SetProtViolQueue                    | Only TEST,
+|     8C |     80 |     2 | UnsetProtViolQueue                  | Only TEST.
+|     8D |     81 |     0 | Stubbed, returns zero.              |
+|     8E |     82 |     2 | GetResourceViolations               |
+|     8F |     83 |     1 | RemoveDevice?                       |
+|     90 |     84 |     1 | SetGlobalDeviceLock                 | Only MCP. This disables CreateDevice and syscall 0x2E... (bool onoff)
+|     91 |     85 |     3 | GetProcessPendingResourceRequests   |
+|     92 |     86 |     0 | SetupMEM1ProtectionUnit             | Only MCP.
+|     93 |     87 |     0 | ??                                  | Interesting!!!
++--------+--------|-------+-------------------------------------+-----------
+
+
+== Syscall 0xC: CreateMessageQueue ==
+Inputs:
+   r3: u32* entries_ptr
+   r4: u32  num_entries
+
+Outputs:
+   r3: u32 msg_queue_id (actually: index into msgqueue-table)
+       Negative on failure.
+
+
+== Syscall 0xD: DestroyMessageQueue ==
+Inputs:
+   r3: u32 msg_queue_id
+
+
+== Syscall 0x11: RegisterEventHandler ==
+Inputs:
+   r3: u32 event_id
+   r4: u32 msg_queue_id
+   r5: u32 ?
+
+Outputs:
+   r3: Non-zero on failure.
+
+This is used to listen to interrupts.
+
+
+== Syscall 0x12: UnregisterEventHandler ==
+Inputs:
+   r3: u32 event_id
+
+Outputs:
+   r3: Non-zero on failure.
+
+
+== Syscall 0x23: CreateHeap ==
+Inputs:
+   r0: base_addr
+   r1: size
+
+Output:
+   r0: Heap id, negative if error
+
+Errors:
+   -33: Not aligned to 32-bytes
+   -5:  Heap-table full
+
+
+== Syscall 0x24: CreateLocalProcessHeap ==
+This one creates CreateHeap() internally, and then adds it to the
+process-heap-table. It also sets bit0 of heap->u32_0x20.
+
+Inputs:
+   r0: base_addr
+   r1: size
+
+Output:
+   r0: 0 on success, negative if error
+
+Errors:
+   -2:  Local process heap already exists.
+
+
+== Syscall 0x25: CreateCrossProcessHeap ==
+This one creates CreateHeap() internally with a ptr allocated from heap-id 1,
+and then adds it to the process-heap-table. It also sets bit1 of heap->u32_0x20.
+
+Inputs:
+   r0: size
+
+Output:
+   r0: 0 on success, negative if error
+
+Errors:
+   -30: Shared heap is full.
+   -2:  Cross process heap already exists.
+
+
+== Syscall 0x66: ContinueStartup ==
+
+Can only be called once, and only by pid == 2. This one tells an early kernel
+thread to continue startup. This one is called by BSP process.
+
+
+== Syscall 0x22: ReadOtp ==
+
+This reads from the Otp, containing all the keys and stuff. ;)
+
+Inputs:
+   r3: u32 otp_offset
+   r4: void* out_ptr
+   r5: u32 len
+
+== Syscall 0x67: ConvertVirtToPhys ==
+
+Inputs:
+   r0: Virtaddr
+Outputs:
+   r0: Physaddr, or zero if error.
+
+Translates using the MMU tables. If the phys-addr is 0xFFFF0000+, it is moved to
+0x0D400000. If the address is between 0xFFFE0000+, it is moved to 0x0D410000.
+
+
+== Syscall 0x84: SetPowerPCAllowedMEM2Ranges ==
+Input;
+  r0: Mask, bit0: update range0, bit1: update range1
+  r1: Start-addr for range0
+  r2: Size for range0
+  r3: Start-addr for range1
+  sp: Size for range1
+
+This one sets the two allowed ranges for PowerPC MEM2 accesses. Range0 is
+usually 0x10000000-0x14000000, and range1 0x28000000-0x90000000.
+
+
+== Syscall 0x8A: WeirdValidateRange ==
+
+Inputs:
+  r0: Virtaddr
+  r1: Size
+
+Output:
+  0 if vaild, -1 otherwise.
+
+It returns -1 if:
+    * (virtaddr+size) overflows.
+    * virtaddr not mapped in mmu-table.
+    * (virtaddr+size) is not within section/page described in pagetable.
+    * Domain bits are set to 0.
+    * AP bits are not 0b11 (user _and_ kernel read/write).
+
+If all checks pass, it returns 0.

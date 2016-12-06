@@ -1,0 +1,53 @@
+== PowerPC IO ==
++---------------+----------+-----------------+--------
+| Physaddr      | Size     | Name            | Description
++---------------+----------+-----------------+--------
+|    0x0C001000 |    0x100 | Legacy GX       | Pixel Engine.
+|    0x0C002000 |    0x100 | Legacy VI       | Video Interface.
+|    0x0C003000 |    0x100 | Legacy PI       | Processor Interface. Interrupt masking, CPU FIFO pointer?!
+|    0x0C004000 |     0x80 | Legacy MI       | Memory Interface. Page protection?
+|    0x0C005000 |    0x200 | Legacy DSP      |
+|    0x0C1E0000 |  0x20000 | Unknown         | Reading from this from webkit yields (u32) 0x0BADBABE.
+|    0x0C200000 |        ? | Radeon GPU      | See http://lxr.free-electrons.com/source/drivers/gpu/drm/radeon/r600d.h#L613
++---------------+----------+-----------------+--------
+
+
+== ARM IO ==
++---------------+----------+-----------------+--------
+| Physaddr      | Size     | Name            | Description
++---------------+----------+-----------------+--------
+|    0x0D006000 |          | DI?             | Used by IOS-FS.
+|    0x0D010000 |     0x1C | NAND/FLA        | Used by IOS-FS. (SLC/SLCCMPT)
+|    0x0D020000 |     0x14 | AES             | Used by IOS-CRYPTO. http://wiibrew.org/wiki/Hardware/AES_Engine
+|    0x0D030000 |     0x14 | SHA             | Used by IOS-CRYPTO. http://wiibrew.org/wiki/Hardware/SHA-1_Engine
+|    0x0D040000 |    0x200 | EHCI            | Used by IOS-USB and IOS-PAD. http://wiibrew.org/wiki/Hardware/USB_Host_Controller
+|    0x0D050000 |    0x200 | OHCI0           | Used by IOS-USB.
+|    0x0D060000 |    0x200 | OHCI1           | Used by IOS-USB and IOS-PAD.
+|    0x0D070000 |    0x200 | SD  (SDIO 0)    | Used by IOS-FS. (SDCARD)
+|    0x0D080000 |    0x200 | WIFI            | Used by IOS-NET.
+|    0x0D100000 |          | MLC (SDIO 2)    | Used by IOS-FS.
+|    0x0D110000 |          | ??? (SDIO 3)    | Used by IOS-FS.
+|    0x0D120000 |          | ???             | Used by IOS-USB.
+|    0x0D130000 |          | ???             | Used by IOS-USB.
+|    0x0D140000 |          | ???             | Used by IOS-PAD.
+|    0x0D150000 |          | ???             | Used by IOS-PAD.
+|    0x0D160000 |          | SATA            | Used by IOS-FS.
+|    0x0D180000 |          | AES             | Used by IOS-CRYPTO.
+|    0x0D190000 |          | SHAS            | Used by IOS-CRYPTO.
++---------------+----------+-----------------+--------
+|    0x0D8B4000 |          | MEMORY CTRL     |
++---------------+----------+-----------------+--------
+
+
+== Shared IO ==
+The following I/O is shared with the Starlet/Starbuck.
+
++---------------+----------+-----------------+--------
+| Physaddr      | Size     | Name            | Description
++---------------+----------+-----------------+--------
+|    0x0D800000 |    0x400 | Misc            | See http://wiibrew.org/wiki/Hardware/Hollywood_Registers
+|    0x0D806000 |     0x40 | Legacy DI       | DVD drive.
+|    0x0D806400 |    0x100 | Legacy SI       | Gamecube joypads.
+|    0x0D806800 |     0x80 | EXI             | Bus with various devices.
+|    0x0D806C00 |     0x20 | Legacy AI       | Audio Interface.
++---------------+----------+-----------------+--------

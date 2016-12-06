@@ -1,0 +1,92 @@
+TCL (transform, clipping, lighting) is a texture-processor and dma engine (?).
+The dmae.rpl uses the TCL DMA engine.
+
+It is mapped at physical address 0x0C200000.
+
+
+
+== TCLSubmitToRing ==
+Input:
+   r3: cmd_t* cmd_ptr
+   r4: u32    cmd_size (in u32 words)
+   r5: ???    unk_out
+   r6: u64*   timestamp_out ?
+
+Output:
+   r3: 0 on success
+
+For the DMA engine request it looks as follows:
+   struct cmd_t {
+      u16 id; // 0x3000 for dma
+      u16 n_words;
+      u32 dst_physaddr;
+      u32 src_physaddr;
+      u32 flags; // Controls endian (?)
+      u32 unk; // Not used
+   }
+
+== TCLWriteRegister ==
+Input:
+   r3: u32 reg_id
+   r4: u32 value
+
+Output:
+   r3: 0 on success.
+
+Writes u32 value to *(0x0C200000+reg_id*4).
+
+
+== TCLReadRegister ==
+Input:
+   r3: u32  reg_id
+   r4: u32* value_out
+
+Output:
+   r3: 0 on success.
+
+Reads *(0x0C200000+reg_id*4).
+
+
+=== Registers ===
+
++-------------+-------
+| Register Id | Name
++-------------+-------
+| 0x3400      | DRMDMA_RB_CNTL
+| 0x3401      | DRMDMA_RB_BASE
+| 0x3402      | DRMDMA_RB_RPTR
+| 0x3403      | DRMDMA_RB_WPTR
+| 0x3404      | DRMDMA_RB_WPTR_POLL_CNTL
+| 0x3405      | DRMDMA_RB_WPTR_POLL_ADDR0
+| 0x3406      | DRMDMA_RB_WPTR_POLL_ADDR1
+| 0x3407      | DRMDMA_RB_RPTR_ADDR0
+| 0x3408      | DRMDMA_RB_RPTR_ADDR1
+| 0x3409      | DRMDMA_IB_CNTL
+| 0x340A      | DRMDMA_IB_RPTR
+| 0x340B      | DRMDMA_CNTL
+| 0x3413      | DRMDMA_IB_OFFSET
+| 0x3414      | DRMDMA_IB_BASE0
+| 0x3415      | DRMDMA_IB_BASE1
+| 0x3416      | DRMDMA_IB_SIZE
+| 0x3419      | DRMDMA_IB_FAULT_ADDR0
+| 0x341A      | DRMDMA_IB_FAULT_ADDR1
+| 0x341D      | DRMDMA_STATUS
++-------------+-------
+
+== Register: DRMDMA_STATUS ==
+
+  bit31: IDLE
+  bit30: REG_IDLE
+  bit29: RB_EMPTY
+  bit28: RB_FULL
+  bit27: RB_CMD_IDLE
+  bit26: RB_CMD_FULL
+  bit25: IB_CMD_IDLE
+  bit24: IB_CMD_FULL
+  bit21: EX_IDLE
+  bit19: TILE_IDLE
+  bit18: MC_WR_IDLE // Microcode?
+  bit12: MC_RD_IDLE
+  bit5:  SEM_IDLE // Semaphore
+  bit1:  INT_IDLE // Interrupt
+

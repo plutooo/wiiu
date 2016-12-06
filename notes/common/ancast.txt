@@ -1,0 +1,16 @@
+Ancast binaries are used for the PPC kernel and the IOSU binary. It has the
+following header:
+
+typedef struct {
+  u32  magic; // 0xEFA282D9
+  u32  header_size; // 0x20
+  u8   padding[0x18];
+} ancast_hdr;
+
+
+Then comes the following struct:
+
+typedef struct {
+    u32 sig_type;
+    u8  sig[X];
+}

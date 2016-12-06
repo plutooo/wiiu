@@ -1,0 +1,20 @@
+== Structs ==
+typedef struct {
+    u32    psr;            // @+0: Initial value: 0x30 if thumb, 0x10 if ARM
+    u32   regs[16];
+    u32   max_prio?;       // @+0x48. Less than 0x80.
+    u32   prio?;           // @+0x4C. Less than 0x80.
+    int   state;           // @+0x50. 1=Stopped, 2=Active, 3=Created-but-not-started 4=Waiting for object, 5=Dead, 6=Faulted
+    u32   pid;             // @+0x54
+    u32   flags;           // @+0x5C. Bit1: has_unk_area
+    void* stack2?;         // @+0xB0. This is a ptr to a 0x400-byte per-thread (kernel?) stack.
+    void* stack_top;       // @+0xB4.
+    u32   stack_size;      // @+0xB8.
+    void* unk_area;        // @+0xBC. If flags & 2 is passed to CreateThread, this contains a ptr to 36-bytes over stacktop.
+
+    // sizeof=0xc8
+} thread;
+
+In MCP there are the real enum values:
+   0=FREE, 1=READY, 2=RUNNING, 3=STOPPED, 4=WAITING, 5=DEAD, 6=FAULTED.
+

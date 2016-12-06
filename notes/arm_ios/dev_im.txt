@@ -1,0 +1,16 @@
+== /dev/im ==
+Very buggy? Very buggy!
+
+== Ioctls ==
+  0  SetSystemPolicy
+  1  SetNvParameter(u32 id, u32 value);
+  2  SetParameter
+  3  GetParameter
+  4  SetDeviceState
+  5  GetEventNotify
+  6  CancelGetEventNotify
+  7  GetHomeButtonParams
+  8  GetTimerRemaining
+  9  GetNvParameter
+ 10  SetTimerElpasedSeconds
+ 11  SetHomeButtonParams

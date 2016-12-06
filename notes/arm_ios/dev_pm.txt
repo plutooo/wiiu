@@ -1,0 +1,6 @@
+== /dev/pm ==
+Process Manager. Device is implemented in MCP.
+All ioctls must be invoked with coreid == 0 (ARM).
+
+
+== Ioctls ==
